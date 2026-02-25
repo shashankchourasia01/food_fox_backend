@@ -49,7 +49,7 @@ app.use('/api/users', userRoutes);
 // ============================================
 // BASE ROUTE
 // ============================================
-app.get('/', (req, res) => {
+app.get('/api', (req, res) => {
   res.json({
     success: true,
     message: '🍽️ Food Ordering System API',
