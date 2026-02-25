@@ -2,7 +2,13 @@ import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import connectDB from './config/db.js';
-import userRoutes from './routes/userRoutes.js'; 
+
+// Import routes
+import userRoutes from './routes/userRoutes.js';
+// import productRoutes from './routes/productRoutes.js';   // Will add later
+// import orderRoutes from './routes/orderRoutes.js';       // Will add later
+// import cartRoutes from './routes/cartRoutes.js';         // Will add later
+// import feedbackRoutes from './routes/feedbackRoutes.js'; // Will add later
 
 // Load environment variables
 dotenv.config();
@@ -14,36 +20,61 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Routes
-app.use('/api/users', userRoutes);  
+// ============================================
+// API ROUTES
+// ============================================
 
-// Test route
+// User routes
+app.use('/api/users', userRoutes);
+
+// Product routes (coming soon)
+// app.use('/api/products', productRoutes);
+
+// Order routes (coming soon)
+// app.use('/api/orders', orderRoutes);
+
+// Cart routes (coming soon)
+// app.use('/api/cart', cartRoutes);
+
+// Feedback routes (coming soon)
+// app.use('/api/feedback', feedbackRoutes);
+
+// ============================================
+// BASE ROUTE
+// ============================================
 app.get('/', (req, res) => {
-  res.json({ 
-    message: 'Food Ordering System API is running!',
-    status: 'success',
+  res.json({
+    success: true,
+    message: '🍽️ Food Ordering System API',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    database: 'connected',
+    endpoints: {
+      users: '/api/users',
+      products: '/api/products (coming soon)',
+      orders: '/api/orders (coming soon)',
+      cart: '/api/cart (coming soon)',
+      feedback: '/api/feedback (coming soon)'
+    },
     timestamp: new Date().toISOString()
   });
 });
 
-// Test API route
-app.get('/api/test', (req, res) => {
-  res.json({ 
-    message: 'API is working!',
-    data: {
-      version: '1.0.0',
-      environment: process.env.NODE_ENV
-    }
-  });
-});
-
+// ============================================
 // Start server
+// ============================================
 app.listen(PORT, () => {
+  console.log('\n=================================');
   console.log(`✅ Server is running on port ${PORT}`);
   console.log(`🔗 http://localhost:${PORT}`);
-  console.log(`🔗 http://localhost:${PORT}/api/test`);
+  console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🗄️  Database: Connected to MongoDB`);
+  console.log('=================================\n');
 });
