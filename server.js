@@ -5,10 +5,8 @@ import connectDB from './config/db.js';
 
 // Import routes
 import userRoutes from './routes/userRoutes.js';
-// import productRoutes from './routes/productRoutes.js';   // Will add later
-// import orderRoutes from './routes/orderRoutes.js';       // Will add later
-// import cartRoutes from './routes/cartRoutes.js';         // Will add later
-// import feedbackRoutes from './routes/feedbackRoutes.js'; // Will add later
+import authRoutes from './routes/authRoutes.js';
+
 
 // Load environment variables
 dotenv.config();
@@ -33,6 +31,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // User routes
 app.use('/api/users', userRoutes);
+app.use('/api/auth', authRoutes);
 
 // Product routes (coming soon)
 // app.use('/api/products', productRoutes);

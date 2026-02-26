@@ -13,13 +13,23 @@ export const protect = asyncHandler(async (req, res, next) => {
       // Verify token
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-      // Get user from token
-      req.user = await User.findById(decoded.id).select('-password');
+      // Get user from token (excluding password/otp)
+      req.user = await User.findById(decoded.id).select('-otp');
+
+      if (!req.user) {
+        res.status(401);
+        throw new Error('User not found');
+      }
 
       next();
     } catch (error) {
       console.error(error);
       res.status(401);
+      
+      if (error.name === 'TokenExpiredError') {
+        throw new Error('Token expired. Please login again.');
+      }
+      
       throw new Error('Not authorized, token failed');
     }
   }

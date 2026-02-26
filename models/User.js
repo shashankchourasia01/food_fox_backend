@@ -4,7 +4,8 @@ import bcrypt from 'bcryptjs';
 const userSchema = mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Please add a name']
+    required: [true, 'Please add a name'],
+    trim: true
   },
   phone: {
     type: String,
@@ -19,6 +20,17 @@ const userSchema = mongoose.Schema({
       'Please add a valid email'
     ]
   },
+  // 🔐 New fields for OTP
+  otp: {
+    code: String,
+    expiresAt: Date,
+    attempts: { type: Number, default: 0 }
+  },
+  isVerified: {
+    type: Boolean,
+    default: false
+  },
+  // User addresses
   addresses: [
     {
       type: {
@@ -33,31 +45,24 @@ const userSchema = mongoose.Schema({
       isDefault: { type: Boolean, default: false }
     }
   ],
-  isVerified: {
-    type: Boolean,
-    default: false
-  },
   role: {
     type: String,
     enum: ['user', 'admin'],
     default: 'user'
-  }
+  },
+  lastLogin: Date
 }, {
   timestamps: true
 });
 
-// Encrypt password if using password (for admin)
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) {
-    next();
-  }
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
-});
+// Compare OTP (method)
+userSchema.methods.compareOTP = function(enteredOTP) {
+  return this.otp && this.otp.code === enteredOTP;
+};
 
-// Match password
-userSchema.methods.matchPassword = async function(enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+// Check if OTP is expired
+userSchema.methods.isOTPExpired = function() {
+  return this.otp && this.otp.expiresAt < new Date();
 };
 
 const User = mongoose.model('User', userSchema);
