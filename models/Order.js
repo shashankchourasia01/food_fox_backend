@@ -1,34 +1,40 @@
 import mongoose from 'mongoose';
 
-const orderSchema = mongoose.Schema({
+const orderSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
-    required: true,
-    ref: 'User'
+    ref: 'User',
+    required: true
   },
   orderItems: [
     {
-      name: { type: String, required: true },
-      quantity: { type: Number, required: true },
-      image: { type: String, required: true },
-      price: { type: Number, required: true },
       product: {
         type: mongoose.Schema.Types.ObjectId,
-        required: true,
-        ref: 'Product'
-      }
+        ref: 'Product',
+        required: true
+      },
+      name: { type: String, required: true },
+      quantity: { type: Number, required: true, min: 1 },
+      price: { type: Number, required: true, min: 0 },
+      image: { type: String, required: true },
+      pieces: String
     }
   ],
   shippingAddress: {
+    fullName: { type: String, required: true },
+    phone: { type: String, required: true },
     address: { type: String, required: true },
     landmark: String,
+    city: { type: String, required: true, default: 'Bangalore' },
+    pincode: { type: String, required: true },
     lat: Number,
     lng: Number
   },
   paymentMethod: {
     type: String,
-    enum: ['COD', 'Card', 'UPI', 'Wallet'],
-    default: 'COD'
+    enum: ['COD', 'Razorpay', 'Stripe', 'Wallet'],
+    default: 'COD',
+    required: true
   },
   paymentResult: {
     id: String,
@@ -39,49 +45,99 @@ const orderSchema = mongoose.Schema({
   itemsPrice: {
     type: Number,
     required: true,
-    default: 0.0
-  },
-  taxPrice: {
-    type: Number,
-    required: true,
-    default: 0.0
+    default: 0.0,
+    min: 0
   },
   deliveryPrice: {
     type: Number,
     required: true,
-    default: 0.0
+    default: 40.0, // ₹40 delivery charge
+    min: 0
+  },
+  taxPrice: {
+    type: Number,
+    required: true,
+    default: 0.0,
+    min: 0
   },
   totalPrice: {
     type: Number,
     required: true,
-    default: 0.0
+    default: 0.0,
+    min: 0
   },
   isPaid: {
     type: Boolean,
     required: true,
     default: false
   },
-  paidAt: {
-    type: Date
-  },
+  paidAt: Date,
   isDelivered: {
     type: Boolean,
     required: true,
     default: false
   },
-  deliveredAt: {
-    type: Date
-  },
-  status: {
+  deliveredAt: Date,
+  orderStatus: {
     type: String,
-    enum: ['pending', 'confirmed', 'preparing', 'out-for-delivery', 'delivered', 'cancelled'],
-    default: 'pending'
+    enum: [
+      'pending',
+      'confirmed',
+      'preparing',
+      'ready',
+      'out-for-delivery',
+      'delivered',
+      'cancelled',
+      'refunded'
+    ],
+    default: 'pending',
+    required: true
   },
-  estimatedDelivery: {
+  statusHistory: [
+    {
+      status: {
+        type: String,
+        enum: [
+          'pending',
+          'confirmed',
+          'preparing',
+          'ready',
+          'out-for-delivery',
+          'delivered',
+          'cancelled',
+          'refunded'
+        ]
+      },
+      timestamp: { type: Date, default: Date.now },
+      note: String,
+      updatedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      }
+    }
+  ],
+  estimatedDeliveryTime: {
     type: Date
-  }
+  },
+  actualDeliveryTime: Date,
+  cancellationReason: String,
+  notes: String,
+  trackingId: String
 }, {
   timestamps: true
+});
+
+// Add index for faster queries
+orderSchema.index({ user: 1, createdAt: -1 });
+orderSchema.index({ orderStatus: 1 });
+
+// Calculate total price before saving
+orderSchema.pre('save', function(next) {
+  this.itemsPrice = this.orderItems.reduce(
+    (total, item) => total + (item.price * item.quantity), 0
+  );
+  this.totalPrice = this.itemsPrice + this.deliveryPrice + this.taxPrice;
+  next();
 });
 
 const Order = mongoose.model('Order', orderSchema);

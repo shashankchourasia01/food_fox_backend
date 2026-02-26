@@ -7,6 +7,8 @@ import connectDB from './config/db.js';
 import userRoutes from './routes/userRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import productRoutes from './routes/productRoutes.js'
+import cartRoutes from './routes/cartRoutes.js';
+import orderRoutes from './routes/orderRoutes.js';
 
 
 // Load environment variables
@@ -34,15 +36,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
-
-// Product routes (coming soon)
-// app.use('/api/products', productRoutes);
-
-// Order routes (coming soon)
-// app.use('/api/orders', orderRoutes);
-
-// Cart routes (coming soon)
-// app.use('/api/cart', cartRoutes);
+app.use('/api/cart', cartRoutes);
+app.use('/api/orders', orderRoutes);
 
 // Feedback routes (coming soon)
 // app.use('/api/feedback', feedbackRoutes);
