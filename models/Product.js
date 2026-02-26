@@ -3,7 +3,8 @@ import mongoose from 'mongoose';
 const productSchema = mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Please add product name']
+    required: [true, 'Please add product name'],
+    trim: true
   },
   description: {
     type: String,
@@ -66,6 +67,10 @@ const productSchema = mongoose.Schema({
 }, {
   timestamps: true
 });
+
+// Add indexes for better search performance
+productSchema.index({ name: 'text', description: 'text' });
+productSchema.index({ category: 1, type: 1 });
 
 const Product = mongoose.model('Product', productSchema);
 export default Product;

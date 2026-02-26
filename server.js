@@ -6,6 +6,7 @@ import connectDB from './config/db.js';
 // Import routes
 import userRoutes from './routes/userRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import productRoutes from './routes/productRoutes.js'
 
 
 // Load environment variables
@@ -32,6 +33,7 @@ app.use(express.urlencoded({ extended: true }));
 // User routes
 app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes);
 
 // Product routes (coming soon)
 // app.use('/api/products', productRoutes);
