@@ -113,12 +113,12 @@ app.get('/api', (req, res) => {
 // 404 HANDLER - Route not found
 // ============================================
 // ✅ Correct way - using all() method
-app.all('*', (req, res) => {
-  res.status(404).json({
-    success: false,
-    message: `🔍 Route '${req.originalUrl}' not found`
-  });
-});
+// app.all('*', (req, res) => {
+//   res.status(404).json({
+//     success: false,
+//     message: `🔍 Route '${req.originalUrl}' not found`
+//   });
+// });
 // ============================================
 // ERROR HANDLER
 // ============================================
