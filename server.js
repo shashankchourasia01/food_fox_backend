@@ -10,6 +10,7 @@ import productRoutes from './routes/productRoutes.js'
 import cartRoutes from './routes/cartRoutes.js';
 import orderRoutes from './routes/orderRoutes.js';
 import addressRoutes from './routes/addressRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 
 
 // Load environment variables
@@ -40,6 +41,7 @@ app.use('/api/products', productRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/users/addresses', addressRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Feedback routes (coming soon)
 // app.use('/api/feedback', feedbackRoutes);

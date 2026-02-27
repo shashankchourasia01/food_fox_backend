@@ -34,7 +34,7 @@ export const getProducts = asyncHandler(async (req, res) => {
   }
 
   // Only show in-stock items
-  query.stock = { $gt: 0 };
+  //query.stock = { $gt: 0 };
 
   // Pagination
   const pageNumber = parseInt(page);
