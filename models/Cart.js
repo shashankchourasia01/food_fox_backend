@@ -52,16 +52,13 @@ const cartSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// ✅ FIXED: Use regular function, NOT arrow function
-cartSchema.pre('save', function(next) {
-  try {
-    // Calculate totals
-    this.totalItems = this.items.reduce((total, item) => total + item.quantity, 0);
-    this.totalPrice = this.items.reduce((total, item) => total + (item.price * item.quantity), 0);
-    next();
-  } catch (error) {
-    next(error);
-  }
+// ✅ SIMPLE VERSION - Without next parameter
+cartSchema.pre('save', function() {
+  // Calculate total items
+  this.totalItems = this.items.reduce((total, item) => total + item.quantity, 0); 
+  
+  // Calculate total price
+  this.totalPrice = this.items.reduce((total, item) => total + (item.price * item.quantity), 0);
 });
 
 const Cart = mongoose.model('Cart', cartSchema);

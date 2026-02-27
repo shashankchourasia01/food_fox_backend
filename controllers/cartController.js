@@ -31,7 +31,9 @@ export const getCart = asyncHandler(async (req, res) => {
 export const addToCart = asyncHandler(async (req, res) => {
   const { productId, quantity = 1 } = req.body;
 
-  // Validate product
+  console.log('📦 Received productId:', productId); // Debug log
+  console.log('📦 Type:', typeof productId); // Check type
+
   const product = await Product.findById(productId);
   if (!product) {
     return res.status(404).json({
@@ -52,7 +54,7 @@ export const addToCart = asyncHandler(async (req, res) => {
   let cart = await Cart.findOne({ user: req.user._id });
   
   if (!cart) {
-    cart = await Cart.create({
+    cart = new Cart({  // ✅ Use 'new Cart()' instead of Cart.create()
       user: req.user._id,
       items: []
     });
@@ -87,6 +89,7 @@ export const addToCart = asyncHandler(async (req, res) => {
     });
   }
 
+  // ✅ Save cart - this will trigger the pre-save middleware
   await cart.save();
 
   // Populate product details
