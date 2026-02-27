@@ -27,8 +27,7 @@ const orderSchema = new mongoose.Schema({
     landmark: String,
     city: { type: String, required: true, default: 'Bangalore' },
     pincode: { type: String, required: true },
-    lat: Number,
-    lng: Number
+    type: { type: String, default: 'home' }
   },
   paymentMethod: {
     type: String,
@@ -51,7 +50,7 @@ const orderSchema = new mongoose.Schema({
   deliveryPrice: {
     type: Number,
     required: true,
-    default: 40.0, // ₹40 delivery charge
+    default: 40.0,
     min: 0
   },
   taxPrice: {
@@ -95,19 +94,7 @@ const orderSchema = new mongoose.Schema({
   },
   statusHistory: [
     {
-      status: {
-        type: String,
-        enum: [
-          'pending',
-          'confirmed',
-          'preparing',
-          'ready',
-          'out-for-delivery',
-          'delivered',
-          'cancelled',
-          'refunded'
-        ]
-      },
+      status: { type: String },
       timestamp: { type: Date, default: Date.now },
       note: String,
       updatedBy: {
@@ -116,9 +103,7 @@ const orderSchema = new mongoose.Schema({
       }
     }
   ],
-  estimatedDeliveryTime: {
-    type: Date
-  },
+  estimatedDeliveryTime: Date,
   actualDeliveryTime: Date,
   cancellationReason: String,
   notes: String,
@@ -127,18 +112,27 @@ const orderSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Add index for faster queries
-orderSchema.index({ user: 1, createdAt: -1 });
-orderSchema.index({ orderStatus: 1 });
-
-// Calculate total price before saving
-orderSchema.pre('save', function(next) {
+// ✅ FIXED: Without next parameter
+orderSchema.pre('save', function() {
+  // Calculate total price
   this.itemsPrice = this.orderItems.reduce(
     (total, item) => total + (item.price * item.quantity), 0
   );
   this.totalPrice = this.itemsPrice + this.deliveryPrice + this.taxPrice;
-  next();
+  
+  // Add to history if status changed
+  if (this.isModified('orderStatus')) {
+    this.statusHistory.push({
+      status: this.orderStatus,
+      timestamp: new Date(),
+      note: `Order ${this.orderStatus}`
+    });
+  }
 });
+
+// Add index for faster queries
+orderSchema.index({ user: 1, createdAt: -1 });
+orderSchema.index({ orderStatus: 1 });
 
 const Order = mongoose.model('Order', orderSchema);
 export default Order;

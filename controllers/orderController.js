@@ -13,6 +13,16 @@ export const createOrder = asyncHandler(async (req, res) => {
     notes
   } = req.body;
 
+  console.log('📦 Creating order with data:', req.body); // Debug log
+
+  // Validate required fields
+  if (!shippingAddress?.pincode) {
+    return res.status(400).json({
+      success: false,
+      message: 'Pincode is required'
+    });
+  }
+
   // Get user's cart
   const cart = await Cart.findOne({ user: req.user._id })
     .populate('items.product', 'name price image stock');
