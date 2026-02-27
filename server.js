@@ -66,7 +66,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 // Handle preflight requests
-app.options('*', cors(corsOptions));
+//app.options('*', cors(corsOptions));
 
 // ============================================
 // OTHER MIDDLEWARE
