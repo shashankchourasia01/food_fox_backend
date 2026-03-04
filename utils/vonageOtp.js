@@ -21,7 +21,7 @@ export const getOTPExpiry = () => {
 export const sendOTPViaVonage = async (phone, otp) => {
   try {
     const sender = process.env.VONAGE_VIRTUAL_NUMBER || 'Vonage';
-    const recipient = phone; // 10-digit number without country code
+    const recipient = `91${phone}`;
     
     // Format message with OTP
     const message = `Your OTP for FlavorFix login is ${otp}. Valid for 5 minutes. Do not share this OTP with anyone.`;
