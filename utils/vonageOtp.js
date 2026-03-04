@@ -139,77 +139,49 @@ export const getOTPExpiry = () => {
 };
 
 // Send OTP via Vonage SMS
+// Send OTP via Vonage SMS
 export const sendOTPViaVonage = async (phone, otp) => {
   try {
     const sender = process.env.VONAGE_VIRTUAL_NUMBER || 'Vonage';
-    const recipient = `91${phone}`;  // Add India country code
-    
+    const recipient = `91${phone}`;
     const message = `${otp} is your OTP.`;
-    
-    console.log(`📤 Sending OTP via Vonage to: ${recipient}`);
-    console.log(`🔢 OTP: ${otp}`);
 
-    // Vonage SMS API call
-    console.log('📤 Sending request to Vonage...');
-    
+    console.log(`Sending request to Vonage for: ${recipient}`);
+
+    // 1. Send the request
     const response = await vonage.sms.send({
-  to: recipient,
-  from: sender,
-  text: message
-});
+      to: recipient,
+      from: sender,
+      text: message
+    });
 
-console.log('✅ Vonage Full Response:', JSON.stringify(response, null, 2));
+    // 2. Log the FULL successful response to see the status
+    console.log('✅ Full API Response:', JSON.stringify(response, null, 2));
 
-// Check each message's status
-if (response.messages && response.messages.length > 0) {
-  const msg = response.messages[0];
-  const status = msg.status;
-  
-  if (status === '0') {
-    // Success
-    return { success: true };
-  } else {
-    // Error - get error details
-    const errorText = msg['error-text'] || 'Unknown error';
-    const errorCode = msg.status;
-    
-    console.error(`❌ Vonage Error Code ${errorCode}: ${errorText}`);
-    
-    // Show user-friendly message based on error code
-    let userMessage = 'Failed to send OTP';
-    if (errorCode === '6') userMessage = 'Message blocked by carrier (spam filter)';
-    else if (errorCode === '9') userMessage = 'Insufficient balance';
-    else if (errorCode === '12') userMessage = 'Invalid destination number';
-    else if (errorCode === '29') userMessage = 'Number not whitelisted';
-    
-    return { 
-      success: false, 
-      error: userMessage,
-      details: { code: errorCode, text: errorText }
-    };
-  }
-}
+    // 3. Check the message status from the response
+    if (response.messages && response.messages[0]) {
+      const status = response.messages[0].status;
+      const errorText = response.messages[0]['error-text'];
+      console.log('📊 Status from response:', status, '-', errorText);
 
-    return { success: false, error: 'Invalid response from Vonage' };
+      if (status === '0') {
+        return { success: true };
+      } else {
+        return { success: false, error: `Vonage API Error ${status}: ${errorText}` };
+      }
+    }
 
   } catch (error) {
-    console.error('❌ Vonage Error Details:', {
-      message: error.message,
-      response: error.response?.data,
-      stack: error.stack
-    });
-    
-    // Handle common Vonage errors
-    if (error.message?.includes('Non-Whitelisted Destination')) {
-      return { 
-        success: false, 
-        error: 'Demo mode: Add this number to whitelist in Vonage dashboard'
-      };
-    }
-    
-    return { 
-      success: false, 
-      error: error.message || 'Failed to send OTP'
+    // ⚠️ THIS IS THE IMPORTANT PART - CATCH THE SDK ERROR
+    console.error('❌ SDK threw an error! Details:');
+    console.error('   - Error message:', error.message);
+    console.error('   - Error status code:', error.status); // Often contains the code
+    // Log the entire error object to find any hidden properties
+    console.error('   - Full error object:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+
+    return {
+      success: false,
+      error: `Vonage SDK Error: ${error.message}`
     };
   }
 };
