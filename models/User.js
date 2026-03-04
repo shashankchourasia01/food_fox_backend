@@ -30,6 +30,7 @@ const userSchema = mongoose.Schema({
     type: Boolean,
     default: false
   },
+  lastLogin: Date,
   // User addresses
   addresses: [
     {
