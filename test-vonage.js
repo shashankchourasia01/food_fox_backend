@@ -15,5 +15,5 @@ try {
   
   console.log('✅ Vonage client created successfully');
 } catch (error) {
-  console.error('❌ Vonage client creation failed:', error.message);
+  console.error('❌ Vonage client creation failed not working:', error.message);
 }
