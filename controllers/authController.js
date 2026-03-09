@@ -203,14 +203,30 @@ export const sendOTP = asyncHandler(async (req, res) => {
   const twilioResult = await sendOTPViaTwilio(phone);
 
   if (twilioResult.success) {
-    // Twilio OTP sent successfully
+    // ✅ Debug logs
+    console.log('✅ Twilio result received:', {
+      sid: twilioResult.sid,
+      status: twilioResult.status
+    });
+
+    // ✅ Explicitly set the values
     user.otp = {
-      requestId: twilioResult.sid,
+      requestId: twilioResult.sid,  // Twilio ka SID
       expiresAt: expiresAt,
       attempts: 0,
       provider: 'twilio'
     };
+    
+    // Save user
     await user.save();
+    
+    // ✅ Verify save was successful
+    const savedUser = await User.findById(user._id);
+    console.log('💾 User after save:', {
+      provider: savedUser.otp?.provider,
+      requestId: savedUser.otp?.requestId,
+      expiresAt: savedUser.otp?.expiresAt
+    });
 
     res.status(200).json({
       success: true,
