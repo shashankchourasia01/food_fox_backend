@@ -74,7 +74,7 @@ export const verifyOTPViaTwilio = async (phone, code) => {
 
     console.log(`🔍 Verifying OTP for: ${formattedNumber} with code: ${code}`);
 
-    // ✅ IMPORTANT: verificationChecks.create() use karo, na ki verificationChecks()
+    // ✅ verificationChecks.create() use karo
     const verificationCheck = await client.verify.v2
       .services(verifyServiceSid)
       .verificationChecks.create({
@@ -88,7 +88,7 @@ export const verifyOTPViaTwilio = async (phone, code) => {
       sid: verificationCheck.sid
     });
 
-    // ✅ status 'approved' ya 'valid: true' means OTP is correct
+    // ✅ status 'approved' means OTP is correct
     return {
       success: verificationCheck.status === 'approved',
       status: verificationCheck.status,

@@ -257,14 +257,31 @@ export const verifyOTP = asyncHandler(async (req, res) => {
 
   const user = await User.findOne({ phone });
   if (!user) {
+    console.log('❌ User not found');
     return res.status(404).json({ success: false, message: 'User not found' });
   }
 
+  console.log('👤 User found:', { 
+    id: user._id, 
+    name: user.name,
+    phone: user.phone,
+    provider: user.otp?.provider 
+  });
+
   if (!user.otp) {
+    console.log('❌ No OTP found in user record');
     return res.status(400).json({ success: false, message: 'No OTP found' });
   }
 
+  console.log('📦 OTP record:', {
+    provider: user.otp.provider,
+    expiresAt: user.otp.expiresAt,
+    attempts: user.otp.attempts,
+    requestId: user.otp.requestId
+  });
+
   if (user.otp.expiresAt < new Date()) {
+    console.log('❌ OTP expired');
     return res.status(400).json({ success: false, message: 'OTP expired' });
   }
 
@@ -272,17 +289,27 @@ export const verifyOTP = asyncHandler(async (req, res) => {
   let verifyResult = null;
 
   if (user.otp.provider === 'twilio') {
-    // Verify with Twilio
+    console.log('📞 Calling Twilio verify with:', { phone, otp, requestId: user.otp.requestId });
+    
     verifyResult = await verifyOTPViaTwilio(phone, otp);
-    console.log('📊 Twilio verify result:', verifyResult);
+    console.log('📊 Raw Twilio verify result:', JSON.stringify(verifyResult, null, 2));
     
     // Check both success flag and valid property
     isValid = verifyResult.success === true || verifyResult.valid === true;
     
+    if (!isValid) {
+      console.log('❌ Twilio verification failed with result:', verifyResult);
+    } else {
+      console.log('✅ Twilio verification successful!');
+    }
+    
   } else if (user.otp.provider === 'local' && user.otp.code) {
     // Local verification
+    console.log('🔍 Local OTP verification:', { stored: user.otp.code, received: otp });
     isValid = (user.otp.code === otp);
     console.log('📊 Local verify result:', isValid);
+  } else {
+    console.log('❌ Unknown provider or missing data:', user.otp.provider);
   }
 
   if (!isValid) {
@@ -290,9 +317,11 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     await user.save();
 
     if (user.otp.attempts >= 3) {
+      console.log('❌ Too many failed attempts');
       return res.status(400).json({ success: false, message: 'Too many failed attempts' });
     }
 
+    console.log(`❌ Invalid OTP, attempts left: ${3 - user.otp.attempts}`);
     return res.status(400).json({
       success: false,
       message: 'Invalid OTP',
@@ -302,6 +331,7 @@ export const verifyOTP = asyncHandler(async (req, res) => {
   }
 
   // Success
+  console.log('✅ OTP verified successfully, logging in user');
   user.isVerified = true;
   user.lastLogin = new Date();
   user.otp = undefined;
