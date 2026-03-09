@@ -20,11 +20,17 @@ const userSchema = mongoose.Schema({
       'Please add a valid email'
     ]
   },
-  // 🔐 New fields for OTP
+  // 🔐 Updated fields for OTP (supports both local and Twilio)
   otp: {
-    code: String,
+    code: String,           // For local OTP
+    requestId: String,      // For Twilio Verify
     expiresAt: Date,
-    attempts: { type: Number, default: 0 }
+    attempts: { type: Number, default: 0 },
+    provider: { 
+      type: String, 
+      enum: ['local', 'twilio'],   // 👈 'twilio' use करो 'vonage-verify' nahी
+      default: 'local'
+    }
   },
   isVerified: {
     type: Boolean,
@@ -50,13 +56,12 @@ const userSchema = mongoose.Schema({
     type: String,
     enum: ['user', 'admin'],
     default: 'user'
-  },
-  lastLogin: Date
+  }
 }, {
   timestamps: true
 });
 
-// Compare OTP (method)
+// Compare OTP (method) - works for local OTP only
 userSchema.methods.compareOTP = function(enteredOTP) {
   return this.otp && this.otp.code === enteredOTP;
 };
@@ -68,7 +73,6 @@ userSchema.methods.isOTPExpired = function() {
 
 const User = mongoose.model('User', userSchema);
 export default User;
-
 
 
 // import mongoose from 'mongoose';
