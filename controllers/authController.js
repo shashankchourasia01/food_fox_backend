@@ -1,6 +1,6 @@
-import asyncHandler from 'express-async-handler';
-import { body, validationResult } from 'express-validator';
-import User from '../models/User.js';
+// import asyncHandler from 'express-async-handler';
+// import { body, validationResult } from 'express-validator';
+// import User from '../models/User.js';
 // import { generateOTP, getOTPExpiry, sendOTPViaSMS, generateToken } from '../utils/otpUtils.js';
 
 // // @desc    Send OTP to user
@@ -150,7 +150,14 @@ import User from '../models/User.js';
 
 
 
-// Old imports hatao, ye naye import karo
+
+
+// new for twilio
+
+
+import asyncHandler from 'express-async-handler';
+import { body, validationResult } from 'express-validator';
+import User from '../models/User.js';
 import { 
   generateOTP, 
   getOTPExpiry, 
@@ -198,7 +205,7 @@ export const sendOTP = asyncHandler(async (req, res) => {
   if (twilioResult.success) {
     // Twilio OTP sent successfully
     user.otp = {
-      requestId: twilioResult.sid, // Twilio ka SID store karo
+      requestId: twilioResult.sid,
       expiresAt: expiresAt,
       attempts: 0,
       provider: 'twilio'
@@ -246,6 +253,8 @@ export const sendOTP = asyncHandler(async (req, res) => {
 export const verifyOTP = asyncHandler(async (req, res) => {
   const { phone, otp } = req.body;
 
+  console.log('🔍 Verify request received:', { phone, otp });
+
   const user = await User.findOne({ phone });
   if (!user) {
     return res.status(404).json({ success: false, message: 'User not found' });
@@ -260,28 +269,21 @@ export const verifyOTP = asyncHandler(async (req, res) => {
   }
 
   let isValid = false;
-
-  // if (user.otp.provider === 'twilio') {
-  //   // Verify with Twilio
-  //   const verifyResult = await verifyOTPViaTwilio(phone, otp);
-  //   isValid = verifyResult.success;
-  //   console.log('Twilio verify result:', verifyResult);
-  // } else if (user.otp.provider === 'local' && user.otp.code) {
-  //   // Local verification
-  //   isValid = (user.otp.code === otp);
-  // }
+  let verifyResult = null;
 
   if (user.otp.provider === 'twilio') {
-  // Verify with Twilio - ✅ यह सही होना चाहिए
-  const verifyResult = await verifyOTPViaTwilio(phone, otp);
-  console.log('Twilio verify result:', verifyResult); // Debug log
-  
-  if (verifyResult.success) {
-    isValid = true;
-  } else {
-    console.log('Twilio verification failed:', verifyResult.error);
+    // Verify with Twilio
+    verifyResult = await verifyOTPViaTwilio(phone, otp);
+    console.log('📊 Twilio verify result:', verifyResult);
+    
+    // Check both success flag and valid property
+    isValid = verifyResult.success === true || verifyResult.valid === true;
+    
+  } else if (user.otp.provider === 'local' && user.otp.code) {
+    // Local verification
+    isValid = (user.otp.code === otp);
+    console.log('📊 Local verify result:', isValid);
   }
-}
 
   if (!isValid) {
     user.otp.attempts += 1;
@@ -294,7 +296,8 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     return res.status(400).json({
       success: false,
       message: 'Invalid OTP',
-      attemptsLeft: 3 - user.otp.attempts
+      attemptsLeft: 3 - user.otp.attempts,
+      debug: verifyResult ? { twilioStatus: verifyResult.status } : null
     });
   }
 
@@ -324,10 +327,7 @@ export const verifyOTP = asyncHandler(async (req, res) => {
   });
 });
 
-
-
-
-// @desc    Resend OTP
+// @desc    Resend OTP - ✅ FIXED with Twilio
 // @route   POST /api/auth/resend-otp
 // @access  Public
 export const resendOTP = asyncHandler(async (req, res) => {
@@ -342,25 +342,48 @@ export const resendOTP = asyncHandler(async (req, res) => {
     });
   }
 
-  // Generate new OTP
-  const otp = generateOTP();
   const expiresAt = getOTPExpiry();
 
-  user.otp = {
-    code: otp,
-    expiresAt: expiresAt,
-    attempts: 0
-  };
-  await user.save();
+  // ✅ Try Twilio OTP
+  console.log(`📤 Resending OTP via Twilio to ${phone}`);
+  const twilioResult = await sendOTPViaTwilio(phone);
 
-  // Send OTP
-  await sendOTPViaSMS(phone, otp);
+  if (twilioResult.success) {
+    user.otp = {
+      requestId: twilioResult.sid,
+      expiresAt: expiresAt,
+      attempts: 0,
+      provider: 'twilio'
+    };
+    await user.save();
 
-  res.status(200).json({
-    success: true,
-    message: 'OTP resent successfully',
-    ...(process.env.NODE_ENV === 'development' && { testOTP: otp })
-  });
+    res.status(200).json({
+      success: true,
+      message: 'OTP resent successfully',
+      data: {
+        phone: user.phone,
+        name: user.name
+      }
+    });
+  } else {
+    // Fallback to local OTP
+    console.log('⚠️ Twilio resend failed, using local OTP');
+    const localOtp = generateOTP();
+
+    user.otp = {
+      code: localOtp,
+      expiresAt: expiresAt,
+      attempts: 0,
+      provider: 'local'
+    };
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'OTP resent via fallback',
+      ...(process.env.NODE_ENV === 'development' && { testOTP: localOtp })
+    });
+  }
 });
 
 // @desc    Get current user profile
@@ -379,12 +402,37 @@ export const getProfile = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/logout
 // @access  Private
 export const logout = asyncHandler(async (req, res) => {
-  // Client side par token remove karna hoga
   res.status(200).json({
     success: true,
     message: 'Logged out successfully'
   });
 });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 // import asyncHandler from 'express-async-handler';
