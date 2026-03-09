@@ -261,15 +261,27 @@ export const verifyOTP = asyncHandler(async (req, res) => {
 
   let isValid = false;
 
+  // if (user.otp.provider === 'twilio') {
+  //   // Verify with Twilio
+  //   const verifyResult = await verifyOTPViaTwilio(phone, otp);
+  //   isValid = verifyResult.success;
+  //   console.log('Twilio verify result:', verifyResult);
+  // } else if (user.otp.provider === 'local' && user.otp.code) {
+  //   // Local verification
+  //   isValid = (user.otp.code === otp);
+  // }
+
   if (user.otp.provider === 'twilio') {
-    // Verify with Twilio
-    const verifyResult = await verifyOTPViaTwilio(phone, otp);
-    isValid = verifyResult.success;
-    console.log('Twilio verify result:', verifyResult);
-  } else if (user.otp.provider === 'local' && user.otp.code) {
-    // Local verification
-    isValid = (user.otp.code === otp);
+  // Verify with Twilio - ✅ यह सही होना चाहिए
+  const verifyResult = await verifyOTPViaTwilio(phone, otp);
+  console.log('Twilio verify result:', verifyResult); // Debug log
+  
+  if (verifyResult.success) {
+    isValid = true;
+  } else {
+    console.log('Twilio verification failed:', verifyResult.error);
   }
+}
 
   if (!isValid) {
     user.otp.attempts += 1;

@@ -1,7 +1,7 @@
 import twilio from 'twilio';
 import jwt from 'jsonwebtoken';
 
-// Initialize Twilio client [citation:1]
+// Initialize Twilio client
 const client = twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN
@@ -11,21 +11,21 @@ const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_SID;
 
 // Generate OTP - Twilio khud generate karega, iski zaroorat nahi
 export const generateOTP = () => {
-  return Math.floor(1000 + Math.random() * 9000).toString(); // fallback ke liye
+  return Math.floor(1000 + Math.random() * 9000).toString();
 };
 
 export const getOTPExpiry = () => {
   return new Date(Date.now() + 5 * 60 * 1000);
 };
 
-// 📤 STEP 1: Send OTP using Twilio Verify [citation:1][citation:4]
+// 📤 STEP 1: Send OTP using Twilio Verify
 export const sendOTPViaTwilio = async (phone) => {
   try {
     const formattedNumber = `+91${phone}`; // India country code
     
     console.log(`📤 Sending OTP via Twilio to: ${formattedNumber}`);
 
-    // Twilio Verify API call [citation:1]
+    // Twilio Verify API call
     const verification = await client.verify.v2
       .services(verifyServiceSid)
       .verifications.create({
@@ -41,6 +41,7 @@ export const sendOTPViaTwilio = async (phone) => {
 
     return {
       success: true,
+      sid: verification.sid,
       status: verification.status,
       to: verification.to
     };
@@ -52,7 +53,6 @@ export const sendOTPViaTwilio = async (phone) => {
       status: error.status
     });
 
-    // Handle trial account restrictions [citation:10]
     if (error.code === 60203) {
       return { 
         success: false, 
@@ -67,13 +67,14 @@ export const sendOTPViaTwilio = async (phone) => {
   }
 };
 
-// ✅ STEP 2: Verify OTP using Twilio [citation:1][citation:4]
+// ✅ STEP 2: Verify OTP using Twilio (FIXED VERSION)
 export const verifyOTPViaTwilio = async (phone, code) => {
   try {
     const formattedNumber = `+91${phone}`;
 
-    console.log(`🔍 Verifying OTP for: ${formattedNumber}`);
+    console.log(`🔍 Verifying OTP for: ${formattedNumber} with code: ${code}`);
 
+    // ✅ IMPORTANT: verificationChecks.create() use karo, na ki verificationChecks()
     const verificationCheck = await client.verify.v2
       .services(verifyServiceSid)
       .verificationChecks.create({
@@ -83,17 +84,25 @@ export const verifyOTPViaTwilio = async (phone, code) => {
 
     console.log('✅ Twilio Verify Response:', {
       status: verificationCheck.status,
-      valid: verificationCheck.valid
+      valid: verificationCheck.valid,
+      sid: verificationCheck.sid
     });
 
-    // status 'approved' means OTP is correct [citation:4]
+    // ✅ status 'approved' ya 'valid: true' means OTP is correct
     return {
       success: verificationCheck.status === 'approved',
-      status: verificationCheck.status
+      status: verificationCheck.status,
+      valid: verificationCheck.valid
     };
 
   } catch (error) {
     console.error('❌ Twilio Verify Error:', error);
+    
+    // Handle specific error codes
+    if (error.code === 20404) {
+      return { success: false, error: 'Invalid verification code' };
+    }
+    
     return { success: false, error: error.message };
   }
 };
