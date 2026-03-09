@@ -193,7 +193,8 @@ const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
   'https://food-ordering-frontend.vercel.app/',
-  'https://food-fox-five.vercel.app',   
+  'https://food-fox-five.vercel.app',
+  'https://food-p8v9zlh9m-shashank-kumar-chourasias-projects.vercel.app',   
   'https://food-fox-backend.onrender.com'
 ];
 
