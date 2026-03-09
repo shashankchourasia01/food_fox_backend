@@ -1,13 +1,168 @@
 import asyncHandler from 'express-async-handler';
 import { body, validationResult } from 'express-validator';
 import User from '../models/User.js';
-import { generateOTP, getOTPExpiry, sendOTPViaSMS, generateToken } from '../utils/otpUtils.js';
+// import { generateOTP, getOTPExpiry, sendOTPViaSMS, generateToken } from '../utils/otpUtils.js';
+
+// // @desc    Send OTP to user
+// // @route   POST /api/auth/send-otp
+// // @access  Public
+// export const sendOTP = asyncHandler(async (req, res) => {
+//   // Validation
+//   const errors = validationResult(req);
+//   if (!errors.isEmpty()) {
+//     return res.status(400).json({ success: false, errors: errors.array() });
+//   }
+
+//   const { name, phone } = req.body;
+
+//   // Check if user exists
+//   let user = await User.findOne({ phone });
+
+//   if (user) {
+//     // Existing user - update name if needed
+//     user.name = name || user.name;
+//   } else {
+//     // New user - create account
+//     user = await User.create({
+//       name,
+//       phone,
+//       isVerified: false
+//     });
+//   }
+
+//   // Generate OTP
+//   const otp = generateOTP();
+//   const expiresAt = getOTPExpiry();
+
+//   // Save OTP to user
+//   user.otp = {
+//     code: otp,
+//     expiresAt: expiresAt,
+//     attempts: 0
+//   };
+//   await user.save();
+
+//   // Send OTP via SMS (in production)
+//   await sendOTPViaSMS(phone, otp);
+
+//   // Don't send OTP in response (security)
+//   res.status(200).json({
+//     success: true,
+//     message: 'OTP sent successfully',
+//     data: {
+//       phone: user.phone,
+//       name: user.name,
+//       isExistingUser: !!user,
+//       // ⚠️ Remove this in production - only for testing
+//       ...(process.env.NODE_ENV === 'development' && { testOTP: otp })
+//     }
+//   });
+// });
+
+// // @desc    Verify OTP and login
+// // @route   POST /api/auth/verify-otp
+// // @access  Public
+// export const verifyOTP = asyncHandler(async (req, res) => {
+//   const { phone, otp } = req.body;
+
+//   if (!phone || !otp) {
+//     return res.status(400).json({
+//       success: false,
+//       message: 'Please provide phone and OTP'
+//     });
+//   }
+
+//   // Find user
+//   const user = await User.findOne({ phone });
+
+//   if (!user) {
+//     return res.status(404).json({
+//       success: false,
+//       message: 'User not found. Please request OTP first.'
+//     });
+//   }
+
+//   // Check if OTP exists
+//   if (!user.otp || !user.otp.code) {
+//     return res.status(400).json({
+//       success: false,
+//       message: 'No OTP found. Please request new OTP.'
+//     });
+//   }
+
+//   // Check if OTP expired
+//   if (user.isOTPExpired()) {
+//     return res.status(400).json({
+//       success: false,
+//       message: 'OTP expired. Please request new OTP.'
+//     });
+//   }
+
+//   // Verify OTP
+//   if (user.otp.code !== otp) {
+//     // Increment attempts
+//     user.otp.attempts += 1;
+//     await user.save();
+
+//     return res.status(400).json({
+//       success: false,
+//       message: 'Invalid OTP',
+//       attemptsLeft: 3 - user.otp.attempts
+//     });
+//   }
+
+//   // Max attempts check (optional)
+//   if (user.otp.attempts >= 3) {
+//     return res.status(400).json({
+//       success: false,
+//       message: 'Too many failed attempts. Request new OTP.'
+//     });
+//   }
+
+//   // Success - OTP verified
+//   user.isVerified = true;
+//   user.lastLogin = new Date();
+  
+//   // Clear OTP after successful verification
+//   user.otp = undefined;
+//   await user.save();
+
+//   // Generate JWT Token
+//   const token = generateToken(user._id);
+
+//   res.status(200).json({
+//     success: true,
+//     message: 'Login successful',
+//     data: {
+//       user: {
+//         id: user._id,
+//         name: user.name,
+//         phone: user.phone,
+//         email: user.email,
+//         isVerified: user.isVerified,
+//         role: user.role,
+//         addresses: user.addresses
+//       },
+//       token
+//     }
+//   });
+// });
+
+
+
+// Old imports hatao, ye naye import karo
+import { 
+  generateOTP, 
+  getOTPExpiry, 
+  sendOTPViaTwilio,
+  verifyOTPViaTwilio,
+  generateToken 
+} from '../utils/twilioOtp.js';
 
 // @desc    Send OTP to user
 // @route   POST /api/auth/send-otp
 // @access  Public
 export const sendOTP = asyncHandler(async (req, res) => {
-  // Validation
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ success: false, errors: errors.array() });
@@ -15,14 +170,18 @@ export const sendOTP = asyncHandler(async (req, res) => {
 
   const { name, phone } = req.body;
 
-  // Check if user exists
+  if (!phone || phone.length !== 10) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide a valid 10-digit phone number'
+    });
+  }
+
   let user = await User.findOne({ phone });
 
   if (user) {
-    // Existing user - update name if needed
     user.name = name || user.name;
   } else {
-    // New user - create account
     user = await User.create({
       name,
       phone,
@@ -30,33 +189,55 @@ export const sendOTP = asyncHandler(async (req, res) => {
     });
   }
 
-  // Generate OTP
-  const otp = generateOTP();
   const expiresAt = getOTPExpiry();
 
-  // Save OTP to user
-  user.otp = {
-    code: otp,
-    expiresAt: expiresAt,
-    attempts: 0
-  };
-  await user.save();
+  // Try Twilio OTP
+  console.log(`📤 Sending OTP via Twilio to ${phone}`);
+  const twilioResult = await sendOTPViaTwilio(phone);
 
-  // Send OTP via SMS (in production)
-  await sendOTPViaSMS(phone, otp);
+  if (twilioResult.success) {
+    // Twilio OTP sent successfully
+    user.otp = {
+      requestId: twilioResult.sid, // Twilio ka SID store karo
+      expiresAt: expiresAt,
+      attempts: 0,
+      provider: 'twilio'
+    };
+    await user.save();
 
-  // Don't send OTP in response (security)
-  res.status(200).json({
-    success: true,
-    message: 'OTP sent successfully',
-    data: {
-      phone: user.phone,
-      name: user.name,
-      isExistingUser: !!user,
-      // ⚠️ Remove this in production - only for testing
-      ...(process.env.NODE_ENV === 'development' && { testOTP: otp })
-    }
-  });
+    res.status(200).json({
+      success: true,
+      message: 'OTP sent successfully',
+      data: {
+        phone: user.phone,
+        name: user.name,
+        isExistingUser: !!user
+      }
+    });
+  } else {
+    // Fallback to local OTP
+    console.log('⚠️ Twilio failed, using local OTP');
+    const localOtp = generateOTP();
+
+    user.otp = {
+      code: localOtp,
+      expiresAt: expiresAt,
+      attempts: 0,
+      provider: 'local'
+    };
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'OTP sent via fallback',
+      data: {
+        phone: user.phone,
+        name: user.name,
+        isExistingUser: !!user,
+        ...(process.env.NODE_ENV === 'development' && { testOTP: localOtp })
+      }
+    });
+  }
 });
 
 // @desc    Verify OTP and login
@@ -65,44 +246,38 @@ export const sendOTP = asyncHandler(async (req, res) => {
 export const verifyOTP = asyncHandler(async (req, res) => {
   const { phone, otp } = req.body;
 
-  if (!phone || !otp) {
-    return res.status(400).json({
-      success: false,
-      message: 'Please provide phone and OTP'
-    });
-  }
-
-  // Find user
   const user = await User.findOne({ phone });
-
   if (!user) {
-    return res.status(404).json({
-      success: false,
-      message: 'User not found. Please request OTP first.'
-    });
+    return res.status(404).json({ success: false, message: 'User not found' });
   }
 
-  // Check if OTP exists
-  if (!user.otp || !user.otp.code) {
-    return res.status(400).json({
-      success: false,
-      message: 'No OTP found. Please request new OTP.'
-    });
+  if (!user.otp) {
+    return res.status(400).json({ success: false, message: 'No OTP found' });
   }
 
-  // Check if OTP expired
-  if (user.isOTPExpired()) {
-    return res.status(400).json({
-      success: false,
-      message: 'OTP expired. Please request new OTP.'
-    });
+  if (user.otp.expiresAt < new Date()) {
+    return res.status(400).json({ success: false, message: 'OTP expired' });
   }
 
-  // Verify OTP
-  if (user.otp.code !== otp) {
-    // Increment attempts
+  let isValid = false;
+
+  if (user.otp.provider === 'twilio') {
+    // Verify with Twilio
+    const verifyResult = await verifyOTPViaTwilio(phone, otp);
+    isValid = verifyResult.success;
+    console.log('Twilio verify result:', verifyResult);
+  } else if (user.otp.provider === 'local' && user.otp.code) {
+    // Local verification
+    isValid = (user.otp.code === otp);
+  }
+
+  if (!isValid) {
     user.otp.attempts += 1;
     await user.save();
+
+    if (user.otp.attempts >= 3) {
+      return res.status(400).json({ success: false, message: 'Too many failed attempts' });
+    }
 
     return res.status(400).json({
       success: false,
@@ -111,23 +286,12 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     });
   }
 
-  // Max attempts check (optional)
-  if (user.otp.attempts >= 3) {
-    return res.status(400).json({
-      success: false,
-      message: 'Too many failed attempts. Request new OTP.'
-    });
-  }
-
-  // Success - OTP verified
+  // Success
   user.isVerified = true;
   user.lastLogin = new Date();
-  
-  // Clear OTP after successful verification
   user.otp = undefined;
   await user.save();
 
-  // Generate JWT Token
   const token = generateToken(user._id);
 
   res.status(200).json({
@@ -141,12 +305,15 @@ export const verifyOTP = asyncHandler(async (req, res) => {
         email: user.email,
         isVerified: user.isVerified,
         role: user.role,
-        addresses: user.addresses
+        addresses: user.addresses || []
       },
       token
     }
   });
 });
+
+
+
 
 // @desc    Resend OTP
 // @route   POST /api/auth/resend-otp
