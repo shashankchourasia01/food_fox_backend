@@ -1,9 +1,9 @@
 import fast2sms from 'fast-two-sms';
 import jwt from 'jsonwebtoken';
 
-// Generate 4-digit OTP
+// Generate 6-digit OTP
 export const generateOTP = () => {
-    return Math.floor(1000 + Math.random() * 9000).toString();
+    return Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit
 };
 
 // OTP expiry time
