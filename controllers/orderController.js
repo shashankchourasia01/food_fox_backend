@@ -182,27 +182,35 @@ export const createOrder = asyncHandler(async (req, res) => {
   cart.items = [];
   await cart.save();
 
-  // ✅ WhatsApp URL generate करो (backend में ही)
-  const adminNumber = '9229264244'; // तेरा WhatsApp number
+  // ✅ FIX: Convert ObjectId to String properly
+  const orderIdString = order._id.toString(); // पहले string बनाओ
+  const shortOrderId = orderIdString.slice(-8); // फिर slice करो
+
+  // ✅ WhatsApp URL generate करो
+  const adminNumber = '919229264244'; // Format: Country code + number (without +)
   const message = `🛑 *NEW ORDER ALERT!*\n\n` +
-    `*Order ID:* #${order._id.slice(-8)}\n` +
+    `*Order ID:* #${shortOrderId}\n` +
     `*Customer:* ${req.user.name}\n` +
     `*Phone:* ${req.user.phone}\n` +
     `*Total:* ₹${order.totalPrice}\n` +
     `*Payment:* ${order.paymentMethod}\n` +
     `*Address:* ${order.shippingAddress.address}, ${order.shippingAddress.city} - ${order.shippingAddress.pincode}\n\n` +
-    `🔗 *View Order:* ${process.env.FRONTEND_URL || 'https://food-fox-five.vercel.app'}/admin/orders/${order._id}`;
+    `🔗 *View Order:* ${process.env.FRONTEND_URL || 'https://food-fox-five.vercel.app'}/admin/orders/${orderIdString}`; // यहाँ पूरा ID भेजो
 
   const encodedMessage = encodeURIComponent(message);
   const whatsappUrl = `https://wa.me/${adminNumber}?text=${encodedMessage}`;
 
-  console.log('📲 WhatsApp notification URL generated');
+  console.log('📲 WhatsApp notification URL generated:', whatsappUrl);
 
+  // ✅ Send response with order data (convert _id to string)
   res.status(201).json({
     success: true,
     message: 'Order placed successfully',
-    data: order,
-    whatsappUrl: whatsappUrl // 👈 Frontend को URL भेज दो
+    data: {
+      ...order.toObject(),
+      _id: order._id.toString() // Frontend के लिए string ID
+    },
+    whatsappUrl: whatsappUrl
   });
 });
 
