@@ -15,8 +15,6 @@ export const getOTPExpiry = () => {
 export const sendOTPViaFast2SMS = async (phone, otp) => {
     try {
         const apiKey = process.env.FAST2SMS_API_KEY;
-
-        const route = process.env.FAST2SMS_ROUTE;
         
         const message = `Your OTP for FlavorFix login is ${otp}. Valid for 5 minutes.`;
         
@@ -28,7 +26,7 @@ export const sendOTPViaFast2SMS = async (phone, otp) => {
             url: 'https://www.fast2sms.com/dev/bulkV2',
             params: {
                 authorization: apiKey,
-                route: route,
+                route: 'q',
                 message: message,
                 numbers: phone,
                 flash: '0'
