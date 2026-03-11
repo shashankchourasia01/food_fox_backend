@@ -15,23 +15,24 @@ export const getOTPExpiry = () => {
 export const sendOTPViaFast2SMS = async (phone, otp) => {
     try {
         const apiKey = process.env.FAST2SMS_API_KEY;
+        const route = process.env.FAST2SMS_ROUTE || 's';        // 's' for Bulk SMS Service
+        const senderId = process.env.FAST2SMS_SENDER_ID || 'FSTSMS';
         
-        // Message with OTP
         const message = `Your OTP for FlavorFix login is ${otp}. Valid for 5 minutes.`;
         
-        console.log(`📤 Sending OTP via Fast2SMS (Quick SMS) to: ${phone}`);
+        console.log(`📤 Sending OTP via Fast2SMS (Bulk SMS) to: ${phone}`);
         console.log(`🔢 OTP: ${otp}`);
 
-        // ✅ FIXED: Direct axios GET request with query parameters
         const response = await axios({
             method: 'GET',
             url: 'https://www.fast2sms.com/dev/bulkV2',
             params: {
                 authorization: apiKey,
-                route: 'q',                    // 'q' for Quick SMS (DLT-Free)
-                message: message,               // Message text
-                numbers: phone,                  // Single number (not array)
-                flash: '0'                       // 0 for normal SMS
+                route: route,                    // 's' from env
+                sender_id: senderId,              // FSTSMS pre-approved
+                message: message,
+                numbers: phone,
+                flash: '0'                      // 0 for normal SMS
             },
             timeout: 10000 // 10 seconds timeout
         });
