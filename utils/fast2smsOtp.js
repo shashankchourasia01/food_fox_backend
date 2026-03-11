@@ -18,48 +18,42 @@ export const sendOTPViaFast2SMS = async (phone, otp) => {
         
         const message = `Your OTP for FlavorFix login is ${otp}. Valid for 5 minutes.`;
         
-        console.log(`📤 Sending OTP via Fast2SMS (Bulk SMS) to: ${phone}`);
+        console.log(`📤 Sending OTP via Fast2SMS (Quick SMS) to: ${phone}`);
         console.log(`🔢 OTP: ${otp}`);
 
-        // ✅ FIXED: Force JSON response
         const response = await axios({
             method: 'GET',
             url: 'https://www.fast2sms.com/dev/bulkV2',
             params: {
                 authorization: apiKey,
-                route: 's',
-                sender_id: 'FSTSMS',
+                route: 'q',
                 message: message,
                 numbers: phone,
-                language: 'english',
                 flash: '0'
-            },
-            headers: {
-                'Accept': 'application/json',  // ✅ Force JSON response
-                'Cache-Control': 'no-cache'
             },
             timeout: 15000
         });
 
-        console.log('✅ Fast2SMS Response Data:', response.data);
+        console.log('✅ Fast2SMS Response:', response.data);
 
-        // अगर response string है तो try करो parse करने का
-        if (typeof response.data === 'string') {
-            try {
-                const parsedData = JSON.parse(response.data);
-                console.log('✅ Parsed JSON:', parsedData);
-                
-                if (parsedData && parsedData.return === true) {
-                    return { 
-                        success: true, 
-                        requestId: parsedData.request_id,
-                        message: 'OTP sent successfully'
-                    };
-                }
-            } catch (parseError) {
-                console.error('❌ JSON Parse Error:', parseError.message);
-                // अगर parse नहीं हो पाया तो original data check करो
-                if (response.data.includes('SMS sent successfully')) {
+        // ✅ नया response check code यहाँ paste करना है
+        if (response.data) {
+            console.log('✅ Fast2SMS Response Data:', response.data);
+            
+            // Case 1: Agar JSON object hai
+            if (typeof response.data === 'object' && response.data.return === true) {
+                return { 
+                    success: true, 
+                    requestId: response.data.request_id,
+                    message: 'OTP sent successfully'
+                };
+            }
+            
+            // Case 2: Agar string hai (HTML ya text)
+            if (typeof response.data === 'string') {
+                // Check if it contains success message
+                if (response.data.includes('SMS sent successfully') || 
+                    response.data.includes('return":true')) {
                     return { 
                         success: true, 
                         message: 'OTP sent successfully'
@@ -68,26 +62,11 @@ export const sendOTPViaFast2SMS = async (phone, otp) => {
             }
         }
 
-        // Original response check
-        if (response.data && response.data.return === true) {
-            return { 
-                success: true, 
-                requestId: response.data.request_id,
-                message: 'OTP sent successfully'
-            };
-        }
-
-        const errorMsg = response.data?.message || 'Unknown error';
-        console.error('❌ Fast2SMS Error:', errorMsg);
-        return { success: false, error: errorMsg };
+        // Agar yahan tak pahuncha to fail
+        return { success: false, error: response.data?.message || 'Failed to send OTP' };
 
     } catch (error) {
-        console.error('❌ Fast2SMS Error Details:', {
-            status: error.response?.status,
-            data: error.response?.data,
-            message: error.message
-        });
-        
+        console.error('❌ Fast2SMS Error:', error.message);
         return { success: false, error: error.message };
     }
 };
