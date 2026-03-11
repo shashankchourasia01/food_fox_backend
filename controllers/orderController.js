@@ -6,22 +6,111 @@ import Product from '../models/Product.js';
 // @desc    Create new order
 // @route   POST /api/orders
 // @access  Private
+// export const createOrder = asyncHandler(async (req, res) => {
+//   const {
+//     shippingAddress,
+//     paymentMethod = 'COD',
+//     notes
+//   } = req.body;
+
+//   console.log('📦 Creating order with data:', req.body); // Debug log
+
+//   // Validate required fields
+//   if (!shippingAddress?.pincode) {
+//     return res.status(400).json({
+//       success: false,
+//       message: 'Pincode is required'
+//     });
+//   }
+
+//   // Get user's cart
+//   const cart = await Cart.findOne({ user: req.user._id })
+//     .populate('items.product', 'name price image stock');
+
+//   if (!cart || cart.items.length === 0) {
+//     return res.status(400).json({
+//       success: false,
+//       message: 'Cart is empty'
+//     });
+//   }
+
+//   // Check stock for all items
+//   for (const item of cart.items) {
+//     const product = await Product.findById(item.product._id);
+//     if (product.stock < item.quantity) {
+//       return res.status(400).json({
+//         success: false,
+//         message: `${product.name} has only ${product.stock} items in stock`
+//       });
+//     }
+//   }
+
+//   // Calculate delivery charge
+//   const itemsPrice = cart.totalPrice;
+//   const deliveryPrice = itemsPrice > 500 ? 0 : 40; // Free delivery above ₹500
+
+//   // Create order items
+//   const orderItems = cart.items.map(item => ({
+//     product: item.product._id,
+//     name: item.name,
+//     quantity: item.quantity,
+//     price: item.price,
+//     image: item.image,
+//     pieces: item.pieces
+//   }));
+
+//   // Create order
+//   const order = await Order.create({
+//     user: req.user._id,
+//     orderItems,
+//     shippingAddress: {
+//       ...shippingAddress,
+//       fullName: req.user.name,
+//       phone: req.user.phone
+//     },
+//     paymentMethod,
+//     itemsPrice,
+//     deliveryPrice,
+//     totalPrice: itemsPrice + deliveryPrice,
+//     notes,
+//     orderStatus: 'pending',
+//     statusHistory: [{
+//       status: 'pending',
+//       timestamp: new Date(),
+//       note: 'Order placed successfully'
+//     }],
+//     estimatedDeliveryTime: new Date(Date.now() + 45 * 60 * 1000) // 45 minutes
+//   });
+
+//   // Update product stock
+//   for (const item of cart.items) {
+//     await Product.findByIdAndUpdate(item.product._id, {
+//       $inc: { stock: -item.quantity }
+//     });
+//   }
+
+//   // Clear cart after order placed
+//   cart.items = [];
+//   await cart.save();
+
+//   res.status(201).json({
+//     success: true,
+//     message: 'Order placed successfully',
+//     data: order
+//   });
+// });
+
+
+
+// @desc    Create new order
+// @route   POST /api/orders
+// @access  Private
 export const createOrder = asyncHandler(async (req, res) => {
   const {
     shippingAddress,
     paymentMethod = 'COD',
     notes
   } = req.body;
-
-  console.log('📦 Creating order with data:', req.body); // Debug log
-
-  // Validate required fields
-  if (!shippingAddress?.pincode) {
-    return res.status(400).json({
-      success: false,
-      message: 'Pincode is required'
-    });
-  }
 
   // Get user's cart
   const cart = await Cart.findOne({ user: req.user._id })
@@ -47,7 +136,7 @@ export const createOrder = asyncHandler(async (req, res) => {
 
   // Calculate delivery charge
   const itemsPrice = cart.totalPrice;
-  const deliveryPrice = itemsPrice > 500 ? 0 : 40; // Free delivery above ₹500
+  const deliveryPrice = itemsPrice > 500 ? 0 : 40;
 
   // Create order items
   const orderItems = cart.items.map(item => ({
@@ -79,7 +168,7 @@ export const createOrder = asyncHandler(async (req, res) => {
       timestamp: new Date(),
       note: 'Order placed successfully'
     }],
-    estimatedDeliveryTime: new Date(Date.now() + 45 * 60 * 1000) // 45 minutes
+    estimatedDeliveryTime: new Date(Date.now() + 45 * 60 * 1000)
   });
 
   // Update product stock
@@ -89,16 +178,37 @@ export const createOrder = asyncHandler(async (req, res) => {
     });
   }
 
-  // Clear cart after order placed
+  // Clear cart
   cart.items = [];
   await cart.save();
+
+  // ✅ WhatsApp URL generate करो (backend में ही)
+  const adminNumber = '9229264244'; // तेरा WhatsApp number
+  const message = `🛑 *NEW ORDER ALERT!*\n\n` +
+    `*Order ID:* #${order._id.slice(-8)}\n` +
+    `*Customer:* ${req.user.name}\n` +
+    `*Phone:* ${req.user.phone}\n` +
+    `*Total:* ₹${order.totalPrice}\n` +
+    `*Payment:* ${order.paymentMethod}\n` +
+    `*Address:* ${order.shippingAddress.address}, ${order.shippingAddress.city} - ${order.shippingAddress.pincode}\n\n` +
+    `🔗 *View Order:* ${process.env.FRONTEND_URL || 'https://food-fox-five.vercel.app'}/admin/orders/${order._id}`;
+
+  const encodedMessage = encodeURIComponent(message);
+  const whatsappUrl = `https://wa.me/${adminNumber}?text=${encodedMessage}`;
+
+  console.log('📲 WhatsApp notification URL generated');
 
   res.status(201).json({
     success: true,
     message: 'Order placed successfully',
-    data: order
+    data: order,
+    whatsappUrl: whatsappUrl // 👈 Frontend को URL भेज दो
   });
 });
+
+
+
+
 
 // @desc    Get all orders for logged in user
 // @route   GET /api/orders/my-orders
