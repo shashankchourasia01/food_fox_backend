@@ -1,3 +1,4 @@
+//for fast2sm
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
@@ -20,15 +21,15 @@ const userSchema = mongoose.Schema({
       'Please add a valid email'
     ]
   },
-  // 🔐 Updated fields for OTP (supports both local and Twilio)
+  // 🔐 Updated fields for OTP (supports local, twilio, and fast2sms)
   otp: {
-    code: String,           // For local OTP
+    code: String,           // For local OTP and Fast2SMS
     requestId: String,      // For Twilio Verify
     expiresAt: Date,
     attempts: { type: Number, default: 0 },
     provider: { 
       type: String, 
-      enum: ['local', 'twilio'],   // 👈 'twilio' use करो 'vonage-verify' nahी
+      enum: ['local', 'twilio', 'fast2sms'],   // 👈 'fast2sms' add किया
       default: 'local'
     }
   },
@@ -61,7 +62,7 @@ const userSchema = mongoose.Schema({
   timestamps: true
 });
 
-// Compare OTP (method) - works for local OTP only
+// Compare OTP (method) - works for local and fast2sms
 userSchema.methods.compareOTP = function(enteredOTP) {
   return this.otp && this.otp.code === enteredOTP;
 };
@@ -74,6 +75,12 @@ userSchema.methods.isOTPExpired = function() {
 const User = mongoose.model('User', userSchema);
 export default User;
 
+
+
+
+
+
+// for twilio
 
 // import mongoose from 'mongoose';
 // import bcrypt from 'bcryptjs';
@@ -97,15 +104,15 @@ export default User;
 //       'Please add a valid email'
 //     ]
 //   },
-//   // 🔐 Updated fields for OTP (supports both local and Vonage Verify)
+//   // 🔐 Updated fields for OTP (supports both local and Twilio)
 //   otp: {
 //     code: String,           // For local OTP
-//     requestId: String,      // For Vonage Verify API
+//     requestId: String,      // For Twilio Verify
 //     expiresAt: Date,
 //     attempts: { type: Number, default: 0 },
 //     provider: { 
 //       type: String, 
-//       enum: ['local', 'vonage-verify'],
+//       enum: ['local', 'twilio'],   // 👈 'twilio' use करो 'vonage-verify' nahी
 //       default: 'local'
 //     }
 //   },
@@ -150,3 +157,5 @@ export default User;
 
 // const User = mongoose.model('User', userSchema);
 // export default User;
+
+
