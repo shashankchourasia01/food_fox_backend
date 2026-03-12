@@ -1,4 +1,5 @@
 import asyncHandler from 'express-async-handler';
+import axios from 'axios';
 
 // Haversine formula to calculate distance between two coordinates
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
