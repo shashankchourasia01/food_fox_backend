@@ -24,28 +24,32 @@ const razorpay = new Razorpay({
 // @route   POST /api/payment/create-order
 // @access  Private
 export const createRazorpayOrder = asyncHandler(async (req, res) => {
-    const { amount, currency = 'INR', receipt } = req.body;
+    const { amount } = req.body;
+
+    console.log('💰 Received amount:', amount);
 
     // Validate amount
     if (!amount || amount < 1) {
         return res.status(400).json({
             success: false,
-            message: 'Invalid amount'
+            message: 'Invalid amount. Amount must be at least ₹1'
         });
     }
 
     try {
         // Razorpay options (amount in paise)
         const options = {
-            amount: amount * 100, // Convert ₹ to paise
-            currency,
-            receipt: receipt || `receipt_${Date.now()}`,
+            amount: Math.round(amount * 100), // Convert ₹ to paise and ensure integer
+            currency: 'INR',
+            receipt: `receipt_${Date.now()}`,
             notes: {
                 userId: req.user._id.toString()
             }
         };
 
-        // Create order in Razorpay [citation:8]
+        console.log('💰 Razorpay options:', options);
+
+        // Create order in Razorpay
         const order = await razorpay.orders.create(options);
 
         console.log('✅ Razorpay order created:', order.id);
@@ -57,7 +61,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
                 amount: order.amount,
                 currency: order.currency
             },
-            keyId: process.env.RAZORPAY_KEY_ID // Send public key to frontend
+            keyId: process.env.RAZORPAY_KEY_ID
         });
 
     } catch (error) {
