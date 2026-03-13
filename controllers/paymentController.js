@@ -1,7 +1,18 @@
+import dotenv from 'dotenv';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import asyncHandler from 'express-async-handler';
 import Order from '../models/Order.js';
+
+
+// ✅ Double safety - load env again
+dotenv.config();
+
+// Debug - check if env vars are loaded
+console.log('🔍 Razorpay ENV Check:');
+console.log('   RAZORPAY_KEY_ID exists:', !!process.env.RAZORPAY_KEY_ID);
+console.log('   RAZORPAY_KEY_SECRET exists:', !!process.env.RAZORPAY_KEY_SECRET);
+console.log('   RAZORPAY_KEY_ID value:', process.env.RAZORPAY_KEY_ID ? `${process.env.RAZORPAY_KEY_ID.substring(0, 10)}...` : '❌ Missing');
 
 // Initialize Razorpay
 const razorpay = new Razorpay({

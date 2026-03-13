@@ -169,6 +169,11 @@ import connectDB from './config/db.js';
 // ✅ Load environment variables - सबसे पहले
 dotenv.config();
 
+// ✅ Debug log - check Razorpay env
+console.log('🔥 Server.js - Razorpay ENV Check:');
+console.log('   RAZORPAY_KEY_ID exists:', !!process.env.RAZORPAY_KEY_ID);
+console.log('   RAZORPAY_KEY_SECRET exists:', !!process.env.RAZORPAY_KEY_SECRET);
+
 // Import routes
 import userRoutes from './routes/userRoutes.js';
 import authRoutes from './routes/authRoutes.js';
