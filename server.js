@@ -178,6 +178,7 @@ import orderRoutes from './routes/orderRoutes.js';
 import addressRoutes from './routes/addressRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import deliveryRoutes from './routes/deliveryRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
 
 // Connect to MongoDB
 connectDB();
@@ -249,6 +250,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/users/addresses', addressRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/delivery', deliveryRoutes);
+app.use('/api/payment', paymentRoutes);
 
 // ============================================
 // BASE ROUTE

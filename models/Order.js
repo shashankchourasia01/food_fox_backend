@@ -35,12 +35,20 @@ const orderSchema = new mongoose.Schema({
     default: 'COD',
     required: true
   },
+  // paymentResult: {
+  //   id: String,
+  //   status: String,
+  //   update_time: String,
+  //   email_address: String
+  // },
   paymentResult: {
-    id: String,
-    status: String,
-    update_time: String,
-    email_address: String
-  },
+        id: { type: String },
+        orderId: { type: String },
+        signature: { type: String },
+        status: { type: String },
+        update_time: { type: String },
+        email_address: { type: String }
+    },
   itemsPrice: {
     type: Number,
     required: true,
