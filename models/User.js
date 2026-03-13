@@ -1,4 +1,4 @@
-//for fast2sm
+//for razpay
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
@@ -21,15 +21,15 @@ const userSchema = mongoose.Schema({
       'Please add a valid email'
     ]
   },
-  // 🔐 Updated fields for OTP (supports local, twilio, and fast2sms)
+  // 🔐 OTP fields
   otp: {
-    code: String,           // For local OTP and Fast2SMS
-    requestId: String,      // For Twilio Verify
+    code: String,
+    requestId: String,
     expiresAt: Date,
     attempts: { type: Number, default: 0 },
     provider: { 
       type: String, 
-      enum: ['local', 'twilio', 'fast2sms'],   // 👈 'fast2sms' add किया
+      enum: ['local', 'twilio', 'fast2sms'],
       default: 'local'
     }
   },
@@ -38,7 +38,7 @@ const userSchema = mongoose.Schema({
     default: false
   },
   lastLogin: Date,
-  // User addresses
+  // ✅ User addresses - with city & pincode
   addresses: [
     {
       type: {
@@ -48,6 +48,8 @@ const userSchema = mongoose.Schema({
       },
       address: { type: String, required: true },
       landmark: String,
+      city: { type: String, required: true },      // ✅ Added city
+      pincode: { type: String, required: true },   // ✅ Added pincode
       lat: Number,
       lng: Number,
       isDefault: { type: Boolean, default: false }
@@ -62,7 +64,7 @@ const userSchema = mongoose.Schema({
   timestamps: true
 });
 
-// Compare OTP (method) - works for local and fast2sms
+// Compare OTP (method)
 userSchema.methods.compareOTP = function(enteredOTP) {
   return this.otp && this.otp.code === enteredOTP;
 };
@@ -77,11 +79,7 @@ export default User;
 
 
 
-
-
-
-// for twilio
-
+// //for fast2sm
 // import mongoose from 'mongoose';
 // import bcrypt from 'bcryptjs';
 
@@ -104,15 +102,15 @@ export default User;
 //       'Please add a valid email'
 //     ]
 //   },
-//   // 🔐 Updated fields for OTP (supports both local and Twilio)
+//   // 🔐 Updated fields for OTP (supports local, twilio, and fast2sms)
 //   otp: {
-//     code: String,           // For local OTP
+//     code: String,           // For local OTP and Fast2SMS
 //     requestId: String,      // For Twilio Verify
 //     expiresAt: Date,
 //     attempts: { type: Number, default: 0 },
 //     provider: { 
 //       type: String, 
-//       enum: ['local', 'twilio'],   // 👈 'twilio' use करो 'vonage-verify' nahी
+//       enum: ['local', 'twilio', 'fast2sms'],   // 👈 'fast2sms' add किया
 //       default: 'local'
 //     }
 //   },
@@ -145,7 +143,7 @@ export default User;
 //   timestamps: true
 // });
 
-// // Compare OTP (method) - works for local OTP only
+// // Compare OTP (method) - works for local and fast2sms
 // userSchema.methods.compareOTP = function(enteredOTP) {
 //   return this.otp && this.otp.code === enteredOTP;
 // };
@@ -157,5 +155,3 @@ export default User;
 
 // const User = mongoose.model('User', userSchema);
 // export default User;
-
-
