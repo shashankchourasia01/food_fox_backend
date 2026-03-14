@@ -202,7 +202,9 @@ const allowedOrigins = [
   'https://food-ordering-frontend.vercel.app/',
   'https://food-fox-five.vercel.app',
   'https://food-p8v9zlh9m-shashank-kumar-chourasias-projects.vercel.app',   
-  'https://food-fox-backend.onrender.com'
+  'https://food-fox-backend.onrender.com',
+  'https://saraswatitiffins.com',
+  'https://www.saraswatitiffins.com'
 ];
 
 // Dynamic CORS configuration
