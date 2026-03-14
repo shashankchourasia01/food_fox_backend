@@ -65,7 +65,7 @@ export const createRazorpayOrder = asyncHandler(async (req, res) => {
         });
 
     } catch (error) {
-        console.error('❌ Razorpay order creation error:', error);
+        console.error(' Razorpay order creation error:', error);
         res.status(500).json({
             success: false,
             message: 'Failed to create payment order'
