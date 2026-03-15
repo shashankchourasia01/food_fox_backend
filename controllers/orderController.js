@@ -2,26 +2,17 @@ import asyncHandler from 'express-async-handler';
 import Order from '../models/Order.js';
 import Cart from '../models/Cart.js';
 import Product from '../models/Product.js';
+import whatsappService from '../services/whatsappService.js';
 
-// @desc    Create new order
-// @route   POST /api/orders
-// @access  Private
+// // @desc    Create new order
+// // @route   POST /api/orders
+// // @access  Private
 // export const createOrder = asyncHandler(async (req, res) => {
 //   const {
 //     shippingAddress,
 //     paymentMethod = 'COD',
 //     notes
 //   } = req.body;
-
-//   console.log('📦 Creating order with data:', req.body); // Debug log
-
-//   // Validate required fields
-//   if (!shippingAddress?.pincode) {
-//     return res.status(400).json({
-//       success: false,
-//       message: 'Pincode is required'
-//     });
-//   }
 
 //   // Get user's cart
 //   const cart = await Cart.findOne({ user: req.user._id })
@@ -47,7 +38,7 @@ import Product from '../models/Product.js';
 
 //   // Calculate delivery charge
 //   const itemsPrice = cart.totalPrice;
-//   const deliveryPrice = itemsPrice > 500 ? 0 : 40; // Free delivery above ₹500
+//   const deliveryPrice = itemsPrice > 500 ? 0 : 40;
 
 //   // Create order items
 //   const orderItems = cart.items.map(item => ({
@@ -79,7 +70,7 @@ import Product from '../models/Product.js';
 //       timestamp: new Date(),
 //       note: 'Order placed successfully'
 //     }],
-//     estimatedDeliveryTime: new Date(Date.now() + 45 * 60 * 1000) // 45 minutes
+//     estimatedDeliveryTime: new Date(Date.now() + 45 * 60 * 1000)
 //   });
 
 //   // Update product stock
@@ -89,19 +80,44 @@ import Product from '../models/Product.js';
 //     });
 //   }
 
-//   // Clear cart after order placed
+//   // Clear cart
 //   cart.items = [];
 //   await cart.save();
 
+//   // ✅ FIX: Convert ObjectId to String properly
+//   const orderIdString = order._id.toString(); // पहले string बनाओ
+//   const shortOrderId = orderIdString.slice(-8); // फिर slice करो
+
+//   // ✅ WhatsApp URL generate करो
+//   const adminNumber = '919229264244'; // Format: Country code + number (without +)
+//   const message = `🛑 *NEW ORDER ALERT!*\n\n` +
+//     `*Order ID:* #${shortOrderId}\n` +
+//     `*Customer:* ${req.user.name}\n` +
+//     `*Phone:* ${req.user.phone}\n` +
+//     `*Total:* ₹${order.totalPrice}\n` +
+//     `*Payment:* ${order.paymentMethod}\n` +
+//     `*Address:* ${order.shippingAddress.address}, ${order.shippingAddress.city} - ${order.shippingAddress.pincode}\n\n` +
+//     `🔗 *View Order:* ${process.env.FRONTEND_URL || 'https://food-fox-five.vercel.app'}/admin/orders/${orderIdString}`; // यहाँ पूरा ID भेजो
+
+//   const encodedMessage = encodeURIComponent(message);
+//   const whatsappUrl = `https://wa.me/${adminNumber}?text=${encodedMessage}`;
+
+//   console.log('📲 WhatsApp notification URL generated:', whatsappUrl);
+
+//   // ✅ Send response with order data (convert _id to string)
 //   res.status(201).json({
 //     success: true,
 //     message: 'Order placed successfully',
-//     data: order
+//     data: {
+//       ...order.toObject(),
+//       _id: order._id.toString() // Frontend के लिए string ID
+//     },
+//     whatsappUrl: whatsappUrl
 //   });
 // });
 
 
-
+// for new location code
 // @desc    Create new order
 // @route   POST /api/orders
 // @access  Private
@@ -136,7 +152,7 @@ export const createOrder = asyncHandler(async (req, res) => {
 
   // Calculate delivery charge
   const itemsPrice = cart.totalPrice;
-  const deliveryPrice = itemsPrice > 500 ? 0 : 40;
+  const deliveryPrice = itemsPrice > 500 ? 0 : 30;
 
   // Create order items
   const orderItems = cart.items.map(item => ({
@@ -183,38 +199,51 @@ export const createOrder = asyncHandler(async (req, res) => {
   await cart.save();
 
   // ✅ FIX: Convert ObjectId to String properly
-  const orderIdString = order._id.toString(); // पहले string बनाओ
-  const shortOrderId = orderIdString.slice(-8); // फिर slice करो
+  const orderIdString = order._id.toString();
+  const shortOrderId = orderIdString.slice(-8);
 
-  // ✅ WhatsApp URL generate करो
-  const adminNumber = '919229264244'; // Format: Country code + number (without +)
+  // ✅ STEP 6: GOOGLE MAPS LINK GENERATE KARO
+  let mapsLink = null;
+  if (shippingAddress.lat && shippingAddress.lng) {
+    mapsLink = `https://www.google.com/maps/dir/?api=1&destination=${shippingAddress.lat},${shippingAddress.lng}`;
+  }
+
+  // ✅ WhatsApp URL generate करो (with maps link)
+  const adminNumber = '919229264244';
   const message = `🛑 *NEW ORDER ALERT!*\n\n` +
     `*Order ID:* #${shortOrderId}\n` +
     `*Customer:* ${req.user.name}\n` +
     `*Phone:* ${req.user.phone}\n` +
     `*Total:* ₹${order.totalPrice}\n` +
     `*Payment:* ${order.paymentMethod}\n` +
-    `*Address:* ${order.shippingAddress.address}, ${order.shippingAddress.city} - ${order.shippingAddress.pincode}\n\n` +
-    `🔗 *View Order:* ${process.env.FRONTEND_URL || 'https://food-fox-five.vercel.app'}/admin/orders/${orderIdString}`; // यहाँ पूरा ID भेजो
+    `*Address:* ${order.shippingAddress.address}, ${order.shippingAddress.city} - ${order.shippingAddress.pincode}\n` +
+    (mapsLink ? `📍 *Live Location:* ${mapsLink}\n` : '') +
+    `\n🔗 *View Order:* ${process.env.FRONTEND_URL || 'https://food-fox-five.vercel.app'}/admin/orders/${orderIdString}`;
 
   const encodedMessage = encodeURIComponent(message);
   const whatsappUrl = `https://wa.me/${adminNumber}?text=${encodedMessage}`;
 
   console.log('📲 WhatsApp notification URL generated:', whatsappUrl);
 
-  // ✅ Send response with order data (convert _id to string)
+  // ✅ Prepare response with maps link
+  const orderResponse = {
+    ...order.toObject(),
+    _id: order._id.toString(),
+    mapsLink: mapsLink,
+    whatsappUrl: whatsappUrl  // 👈 WhatsApp URL bhi response mein bhejo
+  };
+
+  // ✅ Send WhatsApp notification (non-blocking)
+  // Ye frontend par already open ho jayega
+  console.log('✅ Order created successfully');
+
   res.status(201).json({
     success: true,
     message: 'Order placed successfully',
-    data: {
-      ...order.toObject(),
-      _id: order._id.toString() // Frontend के लिए string ID
-    },
+    data: orderResponse,
     whatsappUrl: whatsappUrl
   });
 });
-
-
 
 
 
