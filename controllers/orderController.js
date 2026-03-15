@@ -171,7 +171,14 @@ export const createOrder = asyncHandler(async (req, res) => {
     shippingAddress: {
       ...shippingAddress,
       fullName: req.user.name,
-      phone: req.user.phone
+      phone: req.user.phone,
+      // new
+      address: shippingAddress.address,
+      landmark: shippingAddress.landmark || '',
+      city: shippingAddress.city,
+      pincode: shippingAddress.pincode,
+      lat: shippingAddress.lat || null,  // 👈 Add this
+      lng: shippingAddress.lng || null   // 👈 Add this
     },
     paymentMethod,
     itemsPrice,

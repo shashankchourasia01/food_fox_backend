@@ -27,7 +27,9 @@ const orderSchema = new mongoose.Schema({
     landmark: String,
     city: { type: String, required: true, default: 'Bangalore' },
     pincode: { type: String, required: true },
-    type: { type: String, default: 'home' }
+    type: { type: String, default: 'home' },
+    lat: { type: Number },
+    lng: { type: Number }
   },
   paymentMethod: {
     type: String,
