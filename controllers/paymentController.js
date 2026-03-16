@@ -3,16 +3,10 @@ import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import asyncHandler from 'express-async-handler';
 import Order from '../models/Order.js';
+import Cart from '../models/Cart.js';
 
 
-// ✅ Double safety - load env again
 dotenv.config();
-
-// Debug - check if env vars are loaded
-console.log('🔍 Razorpay ENV Check:');
-console.log('   RAZORPAY_KEY_ID exists:', !!process.env.RAZORPAY_KEY_ID);
-console.log('   RAZORPAY_KEY_SECRET exists:', !!process.env.RAZORPAY_KEY_SECRET);
-console.log('   RAZORPAY_KEY_ID value:', process.env.RAZORPAY_KEY_ID ? `${process.env.RAZORPAY_KEY_ID.substring(0, 10)}...` : '❌ Missing');
 
 // Initialize Razorpay
 const razorpay = new Razorpay({
@@ -95,6 +89,16 @@ export const verifyPayment = asyncHandler(async (req, res) => {
     const isAuthentic = expectedSignature === razorpay_signature;
 
     if (isAuthentic) {
+        // Duplicate transaction protection: check if order with this payment ID already exists
+        const existingOrder = await Order.findOne({ 'paymentResult.id': razorpay_payment_id });
+        if (existingOrder) {
+            return res.status(200).json({
+                success: true,
+                message: 'Payment already processed',
+                orderId: existingOrder._id
+            });
+        }
+
         // Payment verified - create actual order in database
         try {
             const order = await Order.create({
@@ -112,6 +116,8 @@ export const verifyPayment = asyncHandler(async (req, res) => {
                 itemsPrice: orderData.itemsPrice,
                 deliveryPrice: orderData.deliveryPrice,
                 totalPrice: orderData.totalPrice,
+                isPaid: true,
+                paidAt: new Date(),
                 orderStatus: 'confirmed',
                 statusHistory: [{
                     status: 'confirmed',
@@ -120,8 +126,11 @@ export const verifyPayment = asyncHandler(async (req, res) => {
                 }]
             });
 
-            // Clear cart (you already have this in createOrder)
-            // You can also call the clearCart function here if needed
+            // Clear user's cart after successful order
+            await Cart.findOneAndUpdate(
+                { user: req.user._id },
+                { items: [], totalPrice: 0, totalItems: 0 }
+            );
 
             res.status(200).json({
                 success: true,
@@ -132,8 +141,8 @@ export const verifyPayment = asyncHandler(async (req, res) => {
         } catch (error) {
             console.error('❌ Order creation error:', error);
             res.status(500).json({
-                success: true,
-                message: 'Payment verified but order creation failed',
+                success: false,
+                message: 'Payment verified but order creation failed. Please contact support.',
                 paymentId: razorpay_payment_id
             });
         }

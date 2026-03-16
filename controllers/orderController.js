@@ -154,6 +154,21 @@ export const createOrder = asyncHandler(async (req, res) => {
   const itemsPrice = cart.totalPrice;
   const deliveryPrice = itemsPrice > 500 ? 0 : 30;
 
+  // Validate coordinates if provided (lat: -90 to 90, lng: -180 to 180)
+  let lat = shippingAddress?.lat;
+  let lng = shippingAddress?.lng;
+  if (lat != null && lng != null) {
+    const numLat = parseFloat(lat);
+    const numLng = parseFloat(lng);
+    if (isNaN(numLat) || isNaN(numLng) || numLat < -90 || numLat > 90 || numLng < -180 || numLng > 180) {
+      lat = null;
+      lng = null;
+    } else {
+      lat = numLat;
+      lng = numLng;
+    }
+  }
+
   // Create order items
   const orderItems = cart.items.map(item => ({
     product: item.product._id,
@@ -172,13 +187,12 @@ export const createOrder = asyncHandler(async (req, res) => {
       ...shippingAddress,
       fullName: req.user.name,
       phone: req.user.phone,
-      // new
       address: shippingAddress.address,
       landmark: shippingAddress.landmark || '',
       city: shippingAddress.city,
       pincode: shippingAddress.pincode,
-      lat: shippingAddress.lat || null,  // 👈 Add this
-      lng: shippingAddress.lng || null   // 👈 Add this
+      lat: lat ?? null,
+      lng: lng ?? null
     },
     paymentMethod,
     itemsPrice,

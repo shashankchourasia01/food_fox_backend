@@ -2,13 +2,21 @@ import asyncHandler from 'express-async-handler';
 import { body, validationResult } from 'express-validator';
 import User from '../models/User.js';
 
-// ✅ FAST2SMS IMPORTS (नया)
 import { 
   generateOTP, 
   getOTPExpiry, 
   sendOTPViaFast2SMS,
   generateToken 
 } from '../utils/fast2smsOtp.js';
+import { sendOTPViaEmail } from '../utils/emailOtp.js';
+
+// Placeholder phone for email-only users (10 digits). Prefix 7 = email user.
+const placeholderPhoneForEmail = (email) => {
+  let h = 0;
+  for (let i = 0; i < email.length; i++) h = ((h << 5) - h) + email.charCodeAt(i) | 0;
+  const base = (Math.abs(h) % 900000000) + 100000000; // 9 digits, avoid leading zero
+  return '7' + base.toString();
+};
 
 // 🔴 TWILIO IMPORTS (COMMENT OUT)
 // import { 
@@ -51,22 +59,10 @@ export const sendOTP = asyncHandler(async (req, res) => {
 
   const expiresAt = getOTPExpiry();
 
-  // 📤 SEND OTP VIA FAST2SMS
-  console.log(`📤 Sending OTP via Fast2SMS to ${phone}`);
-  
-  // Generate OTP locally
   const localOtp = generateOTP();
-  
-  // Send OTP via Fast2SMS
   const smsResult = await sendOTPViaFast2SMS(phone, localOtp);
 
   if (smsResult.success) {
-    // ✅ Fast2SMS successful
-    console.log('✅ Fast2SMS result received:', {
-      requestId: smsResult.requestId,
-      message: smsResult.message
-    });
-
     user.otp = {
       code: localOtp,  // OTP store करो (Fast2SMS verify नहीं करता)
       expiresAt: expiresAt,
@@ -75,8 +71,6 @@ export const sendOTP = asyncHandler(async (req, res) => {
     };
     
     await user.save();
-    
-    console.log('💾 OTP saved for user:', user.phone);
 
     res.status(200).json({
       success: true,
@@ -89,10 +83,9 @@ export const sendOTP = asyncHandler(async (req, res) => {
       }
     });
   } else {
-    // ⚠️ Fast2SMS failed - local OTP fallback (terminal mein dikhega)
-    console.log('⚠️ Fast2SMS failed, using local OTP (terminal only)');
-    console.log(`🔢 Local OTP for ${phone}: ${localOtp}`);
-
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[OTP] Fallback: Local OTP for ${phone}: ${localOtp}`);
+    }
     user.otp = {
       code: localOtp,
       expiresAt: expiresAt,
@@ -120,45 +113,22 @@ export const sendOTP = asyncHandler(async (req, res) => {
 export const verifyOTP = asyncHandler(async (req, res) => {
   const { phone, otp } = req.body;
 
-  console.log('🔍 Verify request received:', { phone, otp });
-
   const user = await User.findOne({ phone });
   if (!user) {
-    console.log('❌ User not found');
     return res.status(404).json({ success: false, message: 'User not found' });
   }
 
-  console.log('👤 User found:', { 
-    id: user._id, 
-    name: user.name,
-    phone: user.phone,
-    provider: user.otp?.provider 
-  });
-
   if (!user.otp) {
-    console.log('❌ No OTP found in user record');
     return res.status(400).json({ success: false, message: 'No OTP found' });
   }
 
-  console.log('📦 OTP record:', {
-    provider: user.otp.provider,
-    expiresAt: user.otp.expiresAt,
-    attempts: user.otp.attempts,
-    storedCode: user.otp.code
-  });
-
   if (user.otp.expiresAt < new Date()) {
-    console.log('❌ OTP expired');
     return res.status(400).json({ success: false, message: 'OTP expired' });
   }
 
   let isValid = false;
-
-  // ✅ FAST2SMS VERIFICATION (हमेशा local code से compare करो)
   if (user.otp.provider === 'fast2sms' || user.otp.provider === 'local') {
-    console.log('🔍 Comparing OTPs:', { stored: user.otp.code, received: otp });
     isValid = (user.otp.code === otp);
-    console.log(`📊 OTP verification result: ${isValid ? '✅ Success' : '❌ Failed'}`);
   }
 
   if (!isValid) {
@@ -166,11 +136,9 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     await user.save();
 
     if (user.otp.attempts >= 3) {
-      console.log('❌ Too many failed attempts');
       return res.status(400).json({ success: false, message: 'Too many failed attempts' });
     }
 
-    console.log(`❌ Invalid OTP, attempts left: ${3 - user.otp.attempts}`);
     return res.status(400).json({
       success: false,
       message: 'Invalid OTP',
@@ -178,8 +146,6 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     });
   }
 
-  // ✅ Success - OTP verified
-  console.log('✅ OTP verified successfully, logging in user');
   user.isVerified = true;
   user.lastLogin = new Date();
   user.otp = undefined;
@@ -209,6 +175,11 @@ export const verifyOTP = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/resend-otp
 // @access  Public
 export const resendOTP = asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+
   const { phone } = req.body;
 
   const user = await User.findOne({ phone });
@@ -223,8 +194,6 @@ export const resendOTP = asyncHandler(async (req, res) => {
   const expiresAt = getOTPExpiry();
   const localOtp = generateOTP();
 
-  // Try Fast2SMS
-  console.log(`📤 Resending OTP via Fast2SMS to ${phone}`);
   const smsResult = await sendOTPViaFast2SMS(phone, localOtp);
 
   if (smsResult.success) {
@@ -246,9 +215,9 @@ export const resendOTP = asyncHandler(async (req, res) => {
       ...(process.env.NODE_ENV === 'development' && { testOTP: localOtp })
     });
   } else {
-    // Fallback to local OTP
-    console.log('⚠️ Fast2SMS resend failed, using local OTP');
-
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[OTP] Resend fallback: Local OTP for ${phone}`);
+    }
     user.otp = {
       code: localOtp,
       expiresAt: expiresAt,
@@ -262,6 +231,181 @@ export const resendOTP = asyncHandler(async (req, res) => {
       message: 'OTP resent via fallback',
       ...(process.env.NODE_ENV === 'development' && { testOTP: localOtp })
     });
+  }
+});
+
+// ========== EMAIL OTP (FREE - no per-OTP cost) ==========
+
+// @desc    Send OTP to email
+// @route   POST /api/auth/send-otp-email
+// @access  Public
+export const sendOTPEmail = asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+
+  const { name, email } = req.body;
+  const emailLower = email?.toLowerCase().trim();
+
+  let user = await User.findOne({ email: emailLower });
+  if (user) {
+    user.name = name || user.name;
+  } else {
+    let phone = placeholderPhoneForEmail(emailLower);
+    try {
+      user = await User.create({
+        name,
+        email: emailLower,
+        phone,
+        isVerified: false
+      });
+    } catch (err) {
+      if (err.code === 11000 && err.keyPattern?.phone) {
+        phone = '8' + (Math.floor(100000000 + Math.random() * 900000000)).toString();
+        user = await User.create({ name, email: emailLower, phone, isVerified: false });
+      } else throw err;
+    }
+  }
+
+  const expiresAt = getOTPExpiry();
+  const localOtp = generateOTP();
+  const emailResult = await sendOTPViaEmail(emailLower, localOtp);
+
+  if (emailResult.success) {
+    user.otp = {
+      code: localOtp,
+      expiresAt,
+      attempts: 0,
+      provider: 'email'
+    };
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'OTP sent to your email',
+      data: {
+        email: user.email,
+        name: user.name,
+        isExistingUser: !!user,
+        ...(process.env.NODE_ENV === 'development' && { testOTP: localOtp })
+      }
+    });
+  } else {
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[OTP] Email fallback: OTP for ${emailLower}: ${localOtp}`);
+      user.otp = { code: localOtp, expiresAt, attempts: 0, provider: 'local' };
+      await user.save();
+      res.status(200).json({
+        success: true,
+        message: 'OTP (dev fallback - check terminal)',
+        data: { email: user.email, name: user.name, testOTP: localOtp }
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to send OTP. Please try again or use Phone OTP.'
+      });
+    }
+  }
+});
+
+// @desc    Verify email OTP and login
+// @route   POST /api/auth/verify-otp-email
+// @access  Public
+export const verifyOTPEmail = asyncHandler(async (req, res) => {
+  const { email, otp } = req.body;
+  const emailLower = email?.toLowerCase().trim();
+
+  const user = await User.findOne({ email: emailLower });
+  if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+  if (!user.otp) return res.status(400).json({ success: false, message: 'No OTP found' });
+  if (user.otp.expiresAt < new Date()) return res.status(400).json({ success: false, message: 'OTP expired' });
+
+  const isValid = (user.otp.provider === 'email' || user.otp.provider === 'local') && user.otp.code === otp;
+
+  if (!isValid) {
+    user.otp.attempts += 1;
+    await user.save();
+    if (user.otp.attempts >= 3) {
+      return res.status(400).json({ success: false, message: 'Too many failed attempts' });
+    }
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid OTP',
+      attemptsLeft: 3 - user.otp.attempts
+    });
+  }
+
+  user.isVerified = true;
+  user.lastLogin = new Date();
+  user.otp = undefined;
+  await user.save();
+
+  const token = generateToken(user._id);
+  res.status(200).json({
+    success: true,
+    message: 'Login successful',
+    data: {
+      user: {
+        id: user._id,
+        name: user.name,
+        phone: user.phone,
+        email: user.email,
+        isVerified: user.isVerified,
+        role: user.role,
+        addresses: user.addresses || []
+      },
+      token
+    }
+  });
+});
+
+// @desc    Resend email OTP
+// @route   POST /api/auth/resend-otp-email
+// @access  Public
+export const resendOTPEmail = asyncHandler(async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ success: false, errors: errors.array() });
+  }
+
+  const { email } = req.body;
+  const emailLower = email?.toLowerCase().trim();
+  const user = await User.findOne({ email: emailLower });
+
+  if (!user) {
+    return res.status(404).json({ success: false, message: 'User not found' });
+  }
+
+  const expiresAt = getOTPExpiry();
+  const localOtp = generateOTP();
+  const emailResult = await sendOTPViaEmail(emailLower, localOtp);
+
+  if (emailResult.success) {
+    user.otp = { code: localOtp, expiresAt, attempts: 0, provider: 'email' };
+    await user.save();
+    res.status(200).json({
+      success: true,
+      message: 'OTP resent to your email',
+      data: { email: user.email, name: user.name },
+      ...(process.env.NODE_ENV === 'development' && { testOTP: localOtp })
+    });
+  } else {
+    if (process.env.NODE_ENV === 'development') {
+      user.otp = { code: localOtp, expiresAt, attempts: 0, provider: 'local' };
+      await user.save();
+      res.status(200).json({
+        success: true,
+        message: 'OTP resent (dev fallback)',
+        ...(process.env.NODE_ENV === 'development' && { testOTP: localOtp })
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        message: 'Failed to resend OTP. Please try again.'
+      });
+    }
   }
 });
 

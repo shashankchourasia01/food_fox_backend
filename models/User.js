@@ -29,7 +29,7 @@ const userSchema = mongoose.Schema({
     attempts: { type: Number, default: 0 },
     provider: { 
       type: String, 
-      enum: ['local', 'twilio', 'fast2sms'],
+      enum: ['local', 'twilio', 'fast2sms', 'email'],
       default: 'local'
     }
   },

@@ -166,13 +166,22 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import connectDB from './config/db.js';
 
-// ✅ Load environment variables - सबसे पहले
+// Load environment variables first
 dotenv.config();
 
-// ✅ Debug log - check Razorpay env
-console.log('🔥 Server.js - Razorpay ENV Check:');
-console.log('   RAZORPAY_KEY_ID exists:', !!process.env.RAZORPAY_KEY_ID);
-console.log('   RAZORPAY_KEY_SECRET exists:', !!process.env.RAZORPAY_KEY_SECRET);
+// Validate critical env vars at startup (log only, don't block)
+if (!process.env.MONGO_URI) {
+  console.warn('⚠️ MONGO_URI not set - database connection may fail');
+}
+if (!process.env.JWT_SECRET) {
+  console.warn('⚠️ JWT_SECRET not set - authentication may be insecure');
+}
+if (process.env.NODE_ENV === 'production') {
+  if (!process.env.FAST2SMS_API_KEY) console.warn('⚠️ FAST2SMS_API_KEY not set - OTP will use fallback');
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    console.warn('⚠️ Razorpay keys not set - online payments will fail');
+  }
+}
 
 // Import routes
 import userRoutes from './routes/userRoutes.js';
@@ -231,10 +240,10 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-// ✅ OPTIONAL: Debug middleware to log all requests
+// Debug middleware (development only)
 if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
-    console.log(`📡 ${req.method} ${req.path} - Origin: ${req.headers.origin || 'No Origin'}`);
+    console.log(`📡 ${req.method} ${req.path}`);
     next();
   });
 }

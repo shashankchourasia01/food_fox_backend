@@ -13,15 +13,19 @@ export const getAddresses = asyncHandler(async (req, res) => {
   });
 });
 
+// Validate coordinates (lat: -90 to 90, lng: -180 to 180)
+const isValidCoord = (val) => val != null && !isNaN(val) && val >= -90 && val <= 90;
+const isValidLng = (val) => val != null && !isNaN(val) && val >= -180 && val <= 180;
+
 // @desc    Add new address
 // @route   POST /api/users/addresses
 // @access  Private
 export const addAddress = asyncHandler(async (req, res) => {
-  const { type, address, landmark, city, pincode, isDefault } = req.body;
+  const { type, address, landmark, city, pincode, isDefault, lat, lng } = req.body;
 
   const user = await User.findById(req.user._id);
 
-  // Create new address object
+  // Create new address object (include lat/lng if valid)
   const newAddress = {
     type,
     address,
@@ -30,6 +34,10 @@ export const addAddress = asyncHandler(async (req, res) => {
     pincode,
     isDefault: isDefault || false
   };
+  if (isValidCoord(lat) && isValidLng(lng)) {
+    newAddress.lat = parseFloat(lat);
+    newAddress.lng = parseFloat(lng);
+  }
 
   // If this is default address, remove default from others
   if (isDefault) {
@@ -56,7 +64,7 @@ export const addAddress = asyncHandler(async (req, res) => {
 // @access  Private
 export const updateAddress = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { type, address, landmark, city, pincode, isDefault } = req.body;
+  const { type, address, landmark, city, pincode, isDefault, lat, lng } = req.body;
 
   const user = await User.findById(req.user._id);
 
@@ -79,16 +87,20 @@ export const updateAddress = asyncHandler(async (req, res) => {
     });
   }
 
-  // Update address
-  user.addresses[addressIndex] = {
-    ...user.addresses[addressIndex],
-    type,
-    address,
-    landmark,
-    city,
-    pincode,
-    isDefault: isDefault || false
-  };
+  // Update address (include lat/lng if valid)
+  user.addresses[addressIndex].type = type;
+  user.addresses[addressIndex].address = address;
+  user.addresses[addressIndex].landmark = landmark;
+  user.addresses[addressIndex].city = city;
+  user.addresses[addressIndex].pincode = pincode;
+  user.addresses[addressIndex].isDefault = isDefault || false;
+  if (isValidCoord(lat) && isValidLng(lng)) {
+    user.addresses[addressIndex].lat = parseFloat(lat);
+    user.addresses[addressIndex].lng = parseFloat(lng);
+  } else {
+    user.addresses[addressIndex].lat = undefined;
+    user.addresses[addressIndex].lng = undefined;
+  }
 
   await user.save();
 
