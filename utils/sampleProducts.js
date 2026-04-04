@@ -19,7 +19,7 @@ export const sampleProducts = [
   {
     name: 'Butter Chicken with Naan',
     description: 'Creamy butter chicken with 2 butter naan',
-    price: 279,
+    price: 79,
     originalPrice: 349,
     discount: 20,
     category: 'Deluxe Thali',
