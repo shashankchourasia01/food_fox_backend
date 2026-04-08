@@ -1,17 +1,15 @@
 import axios from 'axios';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
-// Generate 6-digit OTP
 export const generateOTP = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
-// OTP expiry time
 export const getOTPExpiry = () => {
     return new Date(Date.now() + 5 * 60 * 1000);
 };
 
-// 📤 Send OTP via Fast2SMS (Bulk SMS Service Route)
 export const sendOTPViaFast2SMS = async (phone, otp) => {
     try {
         const apiKey = process.env.FAST2SMS_API_KEY;
@@ -36,11 +34,9 @@ export const sendOTPViaFast2SMS = async (phone, otp) => {
 
         console.log('✅ Fast2SMS Response:', response.data);
 
-        // ✅ नया response check code यहाँ paste करना है
         if (response.data) {
             console.log('✅ Fast2SMS Response Data:', response.data);
             
-            // Case 1: Agar JSON object hai
             if (typeof response.data === 'object' && response.data.return === true) {
                 return { 
                     success: true, 
@@ -49,9 +45,7 @@ export const sendOTPViaFast2SMS = async (phone, otp) => {
                 };
             }
             
-            // Case 2: Agar string hai (HTML ya text)
             if (typeof response.data === 'string') {
-                // Check if it contains success message
                 if (response.data.includes('SMS sent successfully') || 
                     response.data.includes('return":true')) {
                     return { 
@@ -62,7 +56,6 @@ export const sendOTPViaFast2SMS = async (phone, otp) => {
             }
         }
 
-        // Agar yahan tak pahuncha to fail
         return { success: false, error: response.data?.message || 'Failed to send OTP' };
 
     } catch (error) {
@@ -71,9 +64,10 @@ export const sendOTPViaFast2SMS = async (phone, otp) => {
     }
 };
 
-// JWT Token generator
 export const generateToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRE || '30d'
-    });
+    return jwt.sign(
+        { id, jti: crypto.randomUUID() },
+        process.env.JWT_SECRET,
+        { expiresIn: process.env.JWT_EXPIRE || '30d' }
+    );
 };
