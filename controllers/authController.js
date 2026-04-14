@@ -28,7 +28,7 @@ export const sendOTP = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, errors: errors.array() });
   }
 
-  const { name, phone } = req.body;
+  const { name, phone, deviceId } = req.body;
 
   if (!phone || phone.length !== 10) {
     return res.status(400).json({
@@ -37,9 +37,23 @@ export const sendOTP = asyncHandler(async (req, res) => {
     });
   }
 
+  if (!deviceId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Device ID is required'
+    });
+  }
+
   let user = await User.findOne({ phone });
 
   if (user) {
+    // Invalidate any existing active session — new device takes over
+    if (user.isLoggedIn) {
+      console.log(`🔄 Invalidating existing session for ${phone} (new login from device: ${deviceId})`);
+      user.isLoggedIn = false;
+      user.currentToken = null;
+      user.currentDeviceId = null;
+    }
     user.name = name || user.name;
   } else {
     user = await User.create({
@@ -68,10 +82,11 @@ export const sendOTP = asyncHandler(async (req, res) => {
     });
 
     user.otp = {
-      code: localOtp,  // OTP store करो (Fast2SMS verify नहीं करता)
+      code: localOtp,
       expiresAt: expiresAt,
       attempts: 0,
-      provider: 'fast2sms'
+      provider: 'fast2sms',
+      deviceId: deviceId || null
     };
     
     await user.save();
@@ -97,7 +112,8 @@ export const sendOTP = asyncHandler(async (req, res) => {
       code: localOtp,
       expiresAt: expiresAt,
       attempts: 0,
-      provider: 'local'
+      provider: 'local',
+      deviceId: deviceId || null
     };
     await user.save();
 
@@ -118,7 +134,7 @@ export const sendOTP = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/verify-otp
 // @access  Public
 export const verifyOTP = asyncHandler(async (req, res) => {
-  const { phone, otp } = req.body;
+  const { phone, otp, deviceId } = req.body;
 
   console.log('🔍 Verify request received:', { phone, otp });
 
@@ -152,6 +168,15 @@ export const verifyOTP = asyncHandler(async (req, res) => {
     return res.status(400).json({ success: false, message: 'OTP expired' });
   }
 
+  // Ensure OTP is being verified from the same device that requested it
+  if (user.otp.deviceId && deviceId && user.otp.deviceId !== deviceId) {
+    console.log('❌ Device mismatch — OTP was requested from a different device');
+    return res.status(400).json({
+      success: false,
+      message: 'OTP was requested from a different device. Please request a new OTP.'
+    });
+  }
+
   let isValid = false;
 
   // ✅ FAST2SMS VERIFICATION (हमेशा local code से compare करो)
@@ -180,12 +205,16 @@ export const verifyOTP = asyncHandler(async (req, res) => {
 
   // ✅ Success - OTP verified
   console.log('✅ OTP verified successfully, logging in user');
+
+  const token = generateToken(user._id);
+
   user.isVerified = true;
   user.lastLogin = new Date();
   user.otp = undefined;
+  user.isLoggedIn = true;
+  user.currentToken = token;
+  user.currentDeviceId = deviceId || null;
   await user.save();
-
-  const token = generateToken(user._id);
 
   res.status(200).json({
     success: true,
@@ -209,7 +238,14 @@ export const verifyOTP = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/resend-otp
 // @access  Public
 export const resendOTP = asyncHandler(async (req, res) => {
-  const { phone } = req.body;
+  const { phone, deviceId } = req.body;
+
+  if (!deviceId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Device ID is required'
+    });
+  }
 
   const user = await User.findOne({ phone });
 
@@ -218,6 +254,14 @@ export const resendOTP = asyncHandler(async (req, res) => {
       success: false,
       message: 'User not found'
     });
+  }
+
+  // Invalidate existing session on resend as well (new OTP supersedes everything)
+  if (user.isLoggedIn) {
+    console.log(`🔄 Invalidating existing session on resend for ${phone}`);
+    user.isLoggedIn = false;
+    user.currentToken = null;
+    user.currentDeviceId = null;
   }
 
   const expiresAt = getOTPExpiry();
@@ -232,7 +276,8 @@ export const resendOTP = asyncHandler(async (req, res) => {
       code: localOtp,
       expiresAt: expiresAt,
       attempts: 0,
-      provider: 'fast2sms'
+      provider: 'fast2sms',
+      deviceId: deviceId || null
     };
     await user.save();
 
@@ -253,7 +298,8 @@ export const resendOTP = asyncHandler(async (req, res) => {
       code: localOtp,
       expiresAt: expiresAt,
       attempts: 0,
-      provider: 'local'
+      provider: 'local',
+      deviceId: deviceId || null
     };
     await user.save();
 
@@ -281,6 +327,14 @@ export const getProfile = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/logout
 // @access  Private
 export const logout = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.user._id);
+
+  if (user) {
+    user.isLoggedIn = false;
+    user.currentToken = null;
+    await user.save();
+  }
+
   res.status(200).json({
     success: true,
     message: 'Logged out successfully'

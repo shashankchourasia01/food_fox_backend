@@ -17,19 +17,26 @@ const validateSendOTP = [
   body('phone')
     .notEmpty().withMessage('Phone number is required')
     .isLength({ min: 10, max: 10 }).withMessage('Phone must be 10 digits')
-    .matches(/^[0-9]+$/).withMessage('Phone must contain only numbers')
+    .matches(/^[0-9]+$/).withMessage('Phone must contain only numbers'),
+  body('deviceId').notEmpty().withMessage('Device ID is required')
 ];
 
 const validateVerifyOTP = [
   body('phone').notEmpty().withMessage('Phone is required'),
   body('otp').notEmpty().withMessage('OTP is required')
-    .isLength({ min: 4, max: 4 }).withMessage('OTP must be 4 digits')
+    .isLength({ min: 6, max: 6 }).withMessage('OTP must be 6 digits'),
+  body('deviceId').notEmpty().withMessage('Device ID is required')
+];
+
+const validateResendOTP = [
+  body('phone').notEmpty().withMessage('Phone is required'),
+  body('deviceId').notEmpty().withMessage('Device ID is required')
 ];
 
 // Public routes
 router.post('/send-otp', validateSendOTP, sendOTP);
 router.post('/verify-otp', validateVerifyOTP, verifyOTP);
-router.post('/resend-otp', resendOTP);
+router.post('/resend-otp', validateResendOTP, resendOTP);
 
 // Private routes (require authentication)
 router.get('/profile', protect, getProfile);

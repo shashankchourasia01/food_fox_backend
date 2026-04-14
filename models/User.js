@@ -31,13 +31,26 @@ const userSchema = mongoose.Schema({
       type: String, 
       enum: ['local', 'twilio', 'fast2sms'],
       default: 'local'
-    }
+    },
+    deviceId: String
   },
   isVerified: {
     type: Boolean,
     default: false
   },
   lastLogin: Date,
+  isLoggedIn: {
+    type: Boolean,
+    default: false
+  },
+  currentToken: {
+    type: String,
+    default: null
+  },
+  currentDeviceId: {
+    type: String,
+    default: null
+  },
   // ✅ User addresses - with city & pincode
   addresses: [
     {
